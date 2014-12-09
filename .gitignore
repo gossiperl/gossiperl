@@ -1,0 +1,10 @@
+.DS_Store
+.vagrant
+*.beam
+.rebar
+deps/**
+ebin/**
+rebar
+erl_crash.dump
+log/**
+rel/gossiperl
