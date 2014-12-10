@@ -28,12 +28,6 @@ init(Req, Opts) ->
   {ok, reply(cowboy_req:method(Req), Req), Opts}.
 
 reply(<<"POST">>, Req) ->
-  reply_with_data(data, Req);
-reply(_, Req) ->
-  %% Method not allowed.
-  cowboy_req:reply(405, Req).
-
-reply_with_data(data, Req) ->
   {ok, Data, _} = cowboy_req:body(Req, []),
   RequestedOverlayName = cowboy_req:binding(overlay, Req),
   case gossiperl_configuration:for_overlay( RequestedOverlayName ) of
@@ -72,7 +66,11 @@ reply_with_data(data, Req) ->
       end;
     { error, no_config } ->
       cowboy_req:reply(404, [], "Overlay not found.", Req)
-  end.
+  end;
+  
+reply(_, Req) ->
+  %% Method not allowed.
+  cowboy_req:reply(405, Req).
 
 deliver_digest(DigestType, DigestData, OverlayConfig, Member) when is_atom(DigestType) ->
   { StructInfo, RecordTuple } = get_digest_record_from_string(DigestType, DigestData),

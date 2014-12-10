@@ -28,12 +28,6 @@ init(Req, Opts) ->
   {ok, reply(cowboy_req:method(Req), Req), Opts}.
 
 reply(<<"POST">>, Req) ->
-  reply_with_data(data, Req);
-reply(_, Req) ->
-  %% Method not allowed.
-  cowboy_req:reply(405, Req).
-
-reply_with_data(data, Req) ->
   case gen_server:call( gossiperl_web, { authorize, superuser, Req } ) of
     authorized ->
       { StatusCode, Result } = case gossiperl_app:configure_from_file() of
@@ -55,4 +49,8 @@ reply_with_data(data, Req) ->
       cowboy_req:reply(401, [
         {<<"www-authenticate">>, <<"Basic realm=\"Overlays\"">>}
       ], <<"Authorization required.">>, Req)
-  end.
+  end;
+
+reply(_, Req) ->
+  %% Method not allowed.
+  cowboy_req:reply(405, Req).

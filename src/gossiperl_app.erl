@@ -58,7 +58,7 @@ configure_from_file() ->
         [ configure_property( list_to_atom(binary_to_list( Key )), Value ) || { Key, Value } <- ParsedConfig ],
         ok
       catch
-        Error:Reason -> { error, Reason }
+        _Error:Reason -> { error, Reason }
       end
   end.
 

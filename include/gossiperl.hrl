@@ -33,7 +33,7 @@
           drop_unreachable_after = 180 :: integer(),
           redelivery_retry_max = 0 :: integer(),
           redelivery_retry_every = 5 :: integer(),
-          check_local_state_every = 2 :: integer(),
+          gossip_round_every = 2 :: integer(),
           drop_stale_subscriptions_after = 20 :: integer(),
           incoming_data_buffer_size = 16777216 :: integer(),
           outgoing_data_buffer_size = 16777216 :: integer(),
@@ -106,9 +106,6 @@
 -define(MEMBERSHIP(Config), Config#overlayConfig.internal#internalConfig.names#gossiperNames.membership).
 -define(MESSAGING(Config), Config#overlayConfig.internal#internalConfig.names#gossiperNames.messaging).
 -define(SUBSCRIPTIONS(Config), Config#overlayConfig.internal#internalConfig.names#gossiperNames.subscriptions).
--define(ETS_MEMBERSHIP(Config), Config#overlayConfig.internal#internalConfig.names#gossiperNames.ets_membership).
-
--define(ETS_MEMBERSHIP_NEW(Config), Config#overlayConfig.internal#internalConfig.names#gossiperNames.ets_membership2).
 
 -define(ETS_REDELIVERIES(Config), Config#overlayConfig.internal#internalConfig.names#gossiperNames.ets_redeliveries).
 -define(ETS_SUBSCRIPTIONS(Config), Config#overlayConfig.internal#internalConfig.names#gossiperNames.ets_subscriptions).

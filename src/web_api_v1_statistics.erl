@@ -28,12 +28,6 @@ init(Req, Opts) ->
   {ok, reply(cowboy_req:method(Req), Req), Opts}.
 
 reply(<<"GET">>, Req) ->
-  reply_with_data(data, Req);
-reply(_, Req) ->
-  %% Method not allowed.
-  cowboy_req:reply(405, Req).
-
-reply_with_data(data, Req) ->
   RequestedOverlayName = cowboy_req:binding(overlay, Req),
   case gossiperl_configuration:for_overlay( RequestedOverlayName ) of
     { ok, { _, OverlayConfig } } ->
@@ -80,4 +74,8 @@ reply_with_data(data, Req) ->
       end;
     { error, no_config } ->
       cowboy_req:reply(404, Req)
-  end.
+  end;
+  
+reply(_, Req) ->
+  %% Method not allowed.
+  cowboy_req:reply(405, Req).
