@@ -40,7 +40,7 @@ init([Config = #overlayConfig{}]) ->
     { gossip }),
   {ok, {membership, Config, dict:new()}}.
 
-%% doc Handle digest given by messaging.
+%% @doc Handle digest given by messaging.
 handle_cast({ reachable, Member=#digestMember{ member_name=MemberName, member_ip=MemberIp, member_port=MemberPort }, DigestId, Secret },
             { membership, Config=#overlayConfig{ name=OverlayName }, Membership }) when MemberIp =:= <<"127.0.0.1">> ->
   case dict:is_key(MemberName, Membership) of
@@ -236,7 +236,7 @@ terminate(_Reason, LoopData) ->
 %% GOSSIPPING FUNCTIONS
 %% --------------------
 
-%% doc Gossip digest to a random unreachable member.
+%% @doc Gossip digest to a random unreachable member.
 -spec gossip_unreachable( atom(), atom(), term(), gossiperl_config(), list() ) -> #digestMember{} | undefined.
 gossip_unreachable(Visibility, DigestType, Digest, Config = #overlayConfig{}, MembershipList)
   when is_atom(Visibility) andalso is_atom(DigestType)
@@ -249,7 +249,7 @@ gossip_unreachable(Visibility, DigestType, Digest, Config = #overlayConfig{}, Me
       Member
   end.
 
-%% doc Gossip digest to a random reachable member.
+%% @doc Gossip digest to a random reachable member.
 -spec gossip_reachable( atom(), atom(), term(), gossiperl_config(), list() ) -> #digestMember{} | undefined.
 gossip_reachable(Visibility, DigestType, Digest, Config = #overlayConfig{}, MembershipList)
   when is_atom(Visibility) andalso is_atom(DigestType)
@@ -262,7 +262,7 @@ gossip_reachable(Visibility, DigestType, Digest, Config = #overlayConfig{}, Memb
       Member
   end.
 
-%% doc Gossip digest to a random seed.
+%% @doc Gossip digest to a random seed.
 -spec gossip_seed( atom(), term(), gossiperl_config() ) -> ip4_address() | undefined.
 gossip_seed(DigestType, Digest, Config = #overlayConfig{}) when is_atom(DigestType) ->
   case random_seed(Config) of
@@ -276,7 +276,7 @@ gossip_seed(DigestType, Digest, Config = #overlayConfig{}) when is_atom(DigestTy
 %% MEMBERSHIP FUNCTIONS
 %% --------------------
 
-%% doc Get member for current overlay.
+%% @doc Get member for current overlay.
 -spec self_as_member( gossiperl_config() ) -> #digestMember{}.
 self_as_member( Config = #overlayConfig{} ) ->
   #digestMember{
@@ -285,7 +285,7 @@ self_as_member( Config = #overlayConfig{} ) ->
     member_port      = Config#overlayConfig.port,
     member_heartbeat = gossiperl_common:get_timestamp() }.
 
-%% doc Get a random 
+%% @doc Get random member from a list of members.
 -spec random_member(atom(), atom(), list()) -> #digestMember{} | undefined.
 random_member(Status, Visibility, MembershipList)
   when is_atom(Visibility) andalso is_atom(Status)
@@ -302,12 +302,12 @@ random_seed(Config = #overlayConfig{}) ->
   SeedIps = remove_known_ips( Config#overlayConfig.seeds, [ Config#overlayConfig.ip_hint ] ++ Config#overlayConfig.internal#internalConfig.knownIps ),
   case SeedIps of [] -> undefined; _ -> lists:nth( random:uniform( length( SeedIps ) ), SeedIps ) end.
 
-%% doc Is member a seed?
+%% @doc Is member a seed?
 -spec is_seed( binary(), [ ip4_address() ] ) -> boolean().
 is_seed(MemberIp, Seeds) when is_binary(MemberIp) andalso is_list(Seeds) ->
   lists:member( gossiperl_common:parse_binary_ip( MemberIp ), Seeds ).
 
-%% doc Substract known IP addresses from the list of IP addresses. Used for seed establishing.
+%% @doc Substract known IP addresses from the list of IP addresses. Used for seed establishing.
 -spec remove_known_ips( [ ip4_address() ], [ ip4_address() ] ) -> [ ip4_address() ].
 remove_known_ips( ListOfIps, KnownIps )
   when is_list(ListOfIps) andalso is_list(KnownIps) ->

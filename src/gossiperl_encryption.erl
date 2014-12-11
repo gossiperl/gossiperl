@@ -45,7 +45,7 @@ handle_info({ update_config, NewConfig = #overlayConfig{} }, {encryption, _Confi
   gossiperl_log:notice("[~p] Reconfiguring encryption component with ~p.", [ NewConfig#overlayConfig.name, NewConfig ]),
   {noreply, {encryption, NewConfig}};
 
-%% doc Encrypt Msg and deliver to a caller.
+%% @doc Encrypt Msg and deliver to a caller.
 handle_info({ encrypt, MsgType, Msg, CallerPid, ReceivingMember = #digestMember{} }, { encryption, Config })
   when is_atom(MsgType) andalso is_pid(CallerPid) ->
   Encrypted = crypto:block_encrypt( aes_cbc256, Config#overlayConfig.symmetric_key, Config#overlayConfig.iv, ?AES_PAD( Msg ) ),
@@ -55,7 +55,7 @@ handle_info({ encrypt, MsgType, Msg, CallerPid, ReceivingMember = #digestMember{
                                      ReceivingMember } },
   {noreply, { encryption, Config }};
 
-%% doc Decrypt Msg and deliver to a caller, forward given state.
+%% @doc Decrypt Msg and deliver to a caller, forward given state.
 handle_info({ decrypt, Msg, CallerPid, State }, { encryption, Config })
   when is_pid(CallerPid) ->
   try

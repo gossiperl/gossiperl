@@ -30,18 +30,18 @@
 
 -include("gossiperl.hrl").
 
-%% doc Get UNIX timestamp.
+%% @doc Get UNIX timestamp.
 -spec get_timestamp() -> integer().
 get_timestamp() ->
   {Mega,Sec,Micro} = os:timestamp(),
   trunc( ((Mega*1000000+Sec)*1000000+Micro) / 1000000 ).
 
-%% doc Get UNIX timestamp from OS timestamp.
+%% @doc Get UNIX timestamp from OS timestamp.
 -spec get_timestamp( timestamp() ) -> integer().
 get_timestamp({Mega,Sec,Micro}) ->
   trunc( ((Mega*1000000+Sec)*1000000+Micro) / 1000000 ).
 
-%% doc Get first IPv4 address of the interface, if any.
+%% @doc Get first IPv4 address of the interface, if any.
 -spec get_iface_ip( binary() ) -> { ok, ip4_address() } | { error, no_addr } | { error, no_iface }.
 get_iface_ip(Lookup) when is_binary( Lookup ) ->
   case inet:getifaddrs() of
@@ -59,7 +59,7 @@ get_iface_ip(Lookup) when is_binary( Lookup ) ->
     _ -> { error, no_iface }
   end.
 
-%% doc Returns a of IPv4 addresses of every interface installed on the host machine.
+%% @doc Returns a of IPv4 addresses of every interface installed on the host machine.
 -spec get_all_ipv4_addrs() -> { ok, [ ip4_address() ] } | { error, no_iface }.
 get_all_ipv4_addrs() ->
   case inet:getifaddrs() of

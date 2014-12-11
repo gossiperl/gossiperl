@@ -203,7 +203,7 @@ terminate(_Reason, LoopData) ->
 
 %% private
 
-%% doc Get erflux configuration from given data.
+%% @doc Get erflux configuration from given data.
 -spec influx_db_config( [ { binary(), term() } ], erflux:erflux_config() ) -> { ok, erflux:erflux_config() } | { error, { bagarg, term() } }.
 influx_db_config([ H | T ], ConfigRecord) ->
   case H of
@@ -226,7 +226,7 @@ influx_db_config([ H | T ], ConfigRecord) ->
 influx_db_config([], ConfigRecord) ->
   { ok, ConfigRecord }.
 
-%% doc Get InfluxDB where condition based on the requested statistic window.
+%% @doc Get InfluxDB where condition based on the requested statistic window.
 -spec influx_db_where( binary() ) -> binary().
 influx_db_where( <<"total">> ) ->
   <<>>;

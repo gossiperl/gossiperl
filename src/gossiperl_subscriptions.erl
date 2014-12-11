@@ -174,14 +174,14 @@ code_change(_OldVsn, State, _Extra) ->
 terminate(_Reason, LoopData) ->
   {ok, LoopData}.
 
-%% doc Initialise ETS storage for an overlay.
+%% @doc Initialise ETS storage for an overlay.
 -spec subscriptions_store_init( gossiperl_config() ) -> ok.
 subscriptions_store_init(Config = #overlayConfig{}) ->
   ets:new( ?ETS_SUBSCRIPTIONS( Config ), [ set, named_table, public ] ),
   ets:new( ?ETS_REDELIVERIES( Config ),  [ set, named_table, public ] ),
   ok.
 
-%% doc Subscribe a client to an event of a specified type.
+%% @doc Subscribe a client to an event of a specified type.
 -spec subscribe
       ( gossiperl_config(), [ binary() ], binary(), binary() ) -> [ true ];
       ( gossiperl_config(), binary(), binary(), binary() ) -> true.
@@ -206,7 +206,7 @@ subscribe( Config = #overlayConfig{}, EventType, ClientName, Origin, Heartbeat )
                                                                     origin=Origin,
                                                                     heartbeat=Heartbeat } }).
 
-%% doc Unsubscribe a client from an event of a specified type.
+%% @doc Unsubscribe a client from an event of a specified type.
 -spec unsubscribe
       ( gossiperl_config(), [ binary() ], binary(), binary() ) -> [ true ];
       ( gossiperl_config(), binary(), binary(), binary() ) -> true.
@@ -227,7 +227,7 @@ unsubscribe( Config = #overlayConfig{}, EventType, ClientName, Origin )
                   { MessageId, ClientName, EventType } )
     end || [ MessageId, RedeliveryPid ] <- Redeliveries ].
 
-%% doc Delete subscription.
+%% @doc Delete subscription.
 -spec delete_subscription( gossiperl_config(), binary(), binary(), binary() ) -> true.
 delete_subscription( Config = #overlayConfig{}, EventType, ClientName, Origin )
   when is_binary(EventType) andalso is_binary(ClientName)
@@ -252,7 +252,7 @@ notify_local_subscribers( Config = #overlayConfig{}, EventType, EventObject )
         gossiperl_log:warn("[~p] Could not notfiy member ~p. Reason ~p.", [ Config#overlayConfig.name, ClientName, Reason ])
     end || ClientName <- list_subscriptions( Config, EventType )].
 
-%% doc Notify subscribers about incoming message for a subscription.
+%% @doc Notify subscribers about incoming message for a subscription.
 -spec notify_remote_subscribers( gossiperl_config(), binary(), binary(), binary(), binary() ) -> { ok, listeners } | { ok, no_listeners }.
 notify_remote_subscribers( Config = #overlayConfig{}, EventType, EventObject, Origin, ForwardedDigestId )
   when is_binary(EventType) andalso is_binary(EventObject)
@@ -270,7 +270,7 @@ notify_remote_subscribers( Config = #overlayConfig{}, EventType, EventObject, Or
         gossiperl_log:warn("[~p] Could not notfiy member ~p. Reason ~p.", [ Config#overlayConfig.name, ClientName, Reason ])
     end || ClientName <- list_subscriptions( Config, EventType )].
 
-%% doc List registered shareable subscriptions. Excludes member_in, member_out, member_drop, member_quarantine and subscriptions of the member to whom the packet is being sent.
+%% @doc List registered shareable subscriptions. Excludes member_in, member_out, member_drop, member_quarantine and subscriptions of the member to whom the packet is being sent.
 -spec list_shareable_subscriptions( gossiperl_config(), binary() ) -> [ { #digestSubscription{} } ].
 list_shareable_subscriptions(Config = #overlayConfig{}, TargetMember) when is_binary( TargetMember ) ->
   lists:foldl(fun({ Subscription }, Acc) ->
@@ -292,12 +292,12 @@ list_shareable_subscriptions(Config = #overlayConfig{}, TargetMember) when is_bi
     end
   end, [], list_subscriptions(Config)).
 
-%% doc List registered subscriptions.
+%% @doc List registered subscriptions.
 -spec list_subscriptions( gossiperl_config() ) -> [ { #digestSubscription{} } ].
 list_subscriptions(Config = #overlayConfig{}) ->
   lists:flatten( ets:match( ?ETS_SUBSCRIPTIONS( Config ), '$1' ) ).
 
-%% doc List registered subscriptions of a given event type.
+%% @doc List registered subscriptions of a given event type.
 -spec list_subscriptions( gossiperl_config(), binary() ) -> list().
 list_subscriptions( Config = #overlayConfig{}, EventType ) when is_binary(EventType) ->
   lists:flatten(ets:match(

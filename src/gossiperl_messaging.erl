@@ -57,18 +57,18 @@ handle_info({ update_config, NewConfig = #overlayConfig{} }, {messaging, _Config
 
 %% SENDING
 
-%% doc Begins the procedure of sending a digest to a member.
+%% @doc Begins the procedure of sending a digest to a member.
 handle_info({ send_digest, Member = #digestMember{}, DigestType, Digest }, {messaging, Config}) when is_atom(DigestType) ->
   gossiperl_serialization ! { serialize, DigestType, Digest, self(), Member },
   {noreply, {messaging, Config}};
 
-%% doc Called by the serialization module upon successful serialization.
+%% @doc Called by the serialization module upon successful serialization.
 handle_info({ message_serialized, { ok, SerializedMessageType, SerializedMessage, ReceivingMember = #digestMember{} } }, {messaging, Config})
   when is_atom(SerializedMessageType) andalso is_binary(SerializedMessage) ->
   ?ENCRYPTION( Config ) ! { encrypt, SerializedMessageType, SerializedMessage, self(), ReceivingMember },
   {noreply, {messaging, Config}};
 
-%% doc Called by the encryption module upon successful encryption.
+%% @doc Called by the encryption module upon successful encryption.
 handle_info({ message_encrypted, { ok, DigestType, MaybeEncrypted, ReceivingMember = #digestMember{} } }, {messaging, Config})
   when is_atom(DigestType) and is_binary(MaybeEncrypted) ->
   gen_server:cast( gossiperl_statistics, { record,
@@ -84,17 +84,17 @@ handle_info({ message_encrypted, { ok, DigestType, MaybeEncrypted, ReceivingMemb
 
 %% RECEIVING
 
-%% doc gen_udp callback, initializes receiving process by passing the message for decryption.
+%% @doc gen_udp callback, initializes receiving process by passing the message for decryption.
 handle_info({udp, _ClientSocket, ClientIp, ClientPort, Msg}, {messaging, Config}) ->
   ?ENCRYPTION( Config ) ! { decrypt, Msg, self(), { ClientIp, ClientPort, Msg } },
   {noreply, {messaging, Config}};
 
-%% doc Called by the encryption module after successful decryption.
+%% @doc Called by the encryption module after successful decryption.
 handle_info({ message_decrypted, { ok, MaybeDecrypted, State } }, {messaging, Config}) when is_binary(MaybeDecrypted) ->
   gossiperl_serialization ! { deserialize, MaybeDecrypted, self(), State },
   {noreply, {messaging, Config}};
 
-%% doc Called by the serialization module after successful deserialization.
+%% @doc Called by the serialization module after successful deserialization.
 handle_info({ message_deserialized, { ok, DecodedPayloadType, DecodedPayload, State } }, {messaging, Config}) ->
   { ClientIp, ClientPort, OriginalMessage } = State,
   gen_server:cast( gossiperl_statistics, { record,
@@ -105,7 +105,7 @@ handle_info({ message_deserialized, { ok, DecodedPayloadType, DecodedPayload, St
   self() ! { message, DecodedPayloadType, DecodedPayload, { ClientIp, ClientPort } },
   {noreply, {messaging, Config}};
 
-%% doc Processing a digest type not recognised by gossiperl. These are forwardable messages. Notifies subscribers and replies with digestForwardedAck.
+%% @doc Processing a digest type not recognised by gossiperl. These are forwardable messages. Notifies subscribers and replies with digestForwardedAck.
 handle_info({ message_deserialized, {forwardable, ForwardedMessageType, DigestEnvelopeBinary, ForwardedDigestId, State} }, {messaging, Config})
   when is_binary(ForwardedMessageType) andalso is_binary(DigestEnvelopeBinary)
                                        andalso is_binary(ForwardedDigestId) ->
@@ -126,7 +126,7 @@ handle_info({ message_deserialized, {forwardable, ForwardedMessageType, DigestEn
 
   {noreply, {messaging, Config}};
 
-%% doc Process incoming digest.
+%% @doc Process incoming digest.
 handle_info({ message, digest, DecodedPayload, { ClientIp, _ClientPort } }, { messaging, Config }) ->
   % TODO: DecodedPayload#digest.heartbeat - verify that the message is no way to old...
   Member = #digestMember{ member_name = DecodedPayload#digest.name, member_ip = list_to_binary( inet:ntoa( ClientIp ) ),
@@ -134,7 +134,7 @@ handle_info({ message, digest, DecodedPayload, { ClientIp, _ClientPort } }, { me
   gen_server:cast( ?MEMBERSHIP( Config ), { reachable, Member, DecodedPayload#digest.id, DecodedPayload#digest.secret } ),
   {noreply, {messaging, Config}};
 
-%% doc Process incoming digestAck.
+%% @doc Process incoming digestAck.
 handle_info({ message, digestAck, DecodedPayload, { ClientIp, _ClientPort } }, { messaging, Config }) ->
   [ gen_server:cast( ?MEMBERSHIP(Config), { reachable_remote,
                                             case Member#digestMember.member_ip of
@@ -147,12 +147,12 @@ handle_info({ message, digestAck, DecodedPayload, { ClientIp, _ClientPort } }, {
                                                                                end, DecodedPayload#digestAck.membership) ],
   {noreply, {messaging, Config}};
 
-%% doc Process incoming digestSubscriptions.
+%% @doc Process incoming digestSubscriptions.
 handle_info({ message, digestSubscriptions, DecodedPayload, { _ClientIp, _ClientPort } }, { messaging, Config }) ->
   ?SUBSCRIPTIONS( Config ) ! { process_given_list, DecodedPayload#digestSubscriptions.subscriptions },
   {noreply, {messaging, Config}};
 
-%% doc Process incoming digestExit.
+%% @doc Process incoming digestExit.
 handle_info({ message, digestExit, DecodedPayload, { _ClientIp, _ClientPort } }, { messaging, Config }) ->
   case gen_server:call( ?MEMBERSHIP(Config), { is_member_secret_valid, DecodedPayload#digestExit.name, DecodedPayload#digestExit.secret } ) of
     { true, _Member } ->
@@ -162,7 +162,7 @@ handle_info({ message, digestExit, DecodedPayload, { _ClientIp, _ClientPort } },
   end,
   {noreply, {messaging, Config}};
 
-%% doc Process incoming digestSubscribe.
+%% @doc Process incoming digestSubscribe.
 handle_info({ message, digestSubscribe, DecodedPayload, { {127,0,0,1}, _ClientPort } }, { messaging, Config }) ->
   case gen_server:call( ?MEMBERSHIP(Config), { is_member_secret_valid, DecodedPayload#digestSubscribe.name, DecodedPayload#digestSubscribe.secret } ) of
     { true, Member } ->
@@ -184,7 +184,7 @@ handle_info({ message, digestSubscribe, _DecodedPayload, { _ClientIp, _ClientPor
   % digestSubscribe coming from outside of 127.0.0.1, ignoring
   {noreply, {messaging, Config}};
 
-%% doc Process incoming digestUnsubscribe.
+%% @doc Process incoming digestUnsubscribe.
 handle_info({ message, digestUnsubscribe, DecodedPayload, { {127,0,0,1}, _ClientPort } }, { messaging, Config }) ->
   case gen_server:call( ?MEMBERSHIP(Config), { is_member_secret_valid, DecodedPayload#digestUnsubscribe.name, DecodedPayload#digestUnsubscribe.secret } ) of
     { true, Member } ->
@@ -206,7 +206,7 @@ handle_info({ message, digestUnsubscribe, _DecodedPayload, { _ClientIp, _ClientP
   % digestUnsubscribe coming from outside of 127.0.0.1, ignoring
   {noreply, {messaging, Config}};
 
-%% doc Process incoming digestForwardedAck.
+%% @doc Process incoming digestForwardedAck.
 handle_info({ message, digestForwardedAck, DecodedPayload, _Client }, { messaging, Config }) ->
   case gen_server:call( ?MEMBERSHIP(Config), { is_member_secret_valid, DecodedPayload#digestForwardedAck.name, DecodedPayload#digestForwardedAck.secret } ) of
     { true, Member } ->
@@ -218,7 +218,7 @@ handle_info({ message, digestForwardedAck, DecodedPayload, _Client }, { messagin
 
 %% ERROR HANDLING
 
-%% doc Handle message decryption error.
+%% @doc Handle message decryption error.
 handle_info({ message_decrypted, { error, Reason } }, {messaging, Config}) ->
   gen_server:cast( gossiperl_statistics, { record,
                                            list_to_binary(atom_to_list(Config#overlayConfig.name)),
@@ -227,7 +227,7 @@ handle_info({ message_decrypted, { error, Reason } }, {messaging, Config}) ->
   gossiperl_log:err("[~p] Message decrypt failed. Reason ~p.", [Config#overlayConfig.name, Reason]),
   {noreply, {messaging, Config}};
 
-%% doc Handle message deserialization error.
+%% @doc Handle message deserialization error.
 handle_info({ message_deserialized, {error, Reason} }, {messaging, Config}) ->
   gen_server:cast( gossiperl_statistics, { record,
                                            list_to_binary(atom_to_list(Config#overlayConfig.name)),

@@ -33,12 +33,12 @@
 
 -include("gossiperl.hrl").
 
-%% doc Removes configuration for an overlay.
+%% @doc Removes configuration for an overlay.
 -spec remove_configuration_for( atom() ) -> true.
 remove_configuration_for(OverlayName) when is_atom(OverlayName) ->
   ets:delete(gossiperl_overlay_configuration, list_to_binary(atom_to_list( OverlayName )) ).
 
-%% doc Begins configuring an overlay.
+%% @doc Begins configuring an overlay.
 -spec setup( gossiperl_config() ) -> gossiperl_config().
 setup(Config = #overlayConfig{}) ->
   Config2 = case Config#overlayConfig.member_name of
@@ -66,7 +66,7 @@ setup(Config = #overlayConfig{}) ->
     )
   ).
 
-%% doc Sets up internal overlay process names for given configuration.
+%% @doc Sets up internal overlay process names for given configuration.
 -spec names( gossiperl_config() ) -> gossiperl_config().
 names(Config = #overlayConfig{}) ->
   Config#overlayConfig{
@@ -82,7 +82,7 @@ names(Config = #overlayConfig{}) ->
     }
   }.
 
-%% doc Stores UDP socket of an overlay for the configuration.
+%% @doc Stores UDP socket of an overlay for the configuration.
 -spec overlay_socket( port(), gossiperl_config() ) -> gossiperl_config().
 overlay_socket(Socket, Config) when is_port(Socket) ->
   Config2 = Config#overlayConfig{
@@ -90,13 +90,13 @@ overlay_socket(Socket, Config) when is_port(Socket) ->
       socket = Socket } },
   store_config( Config2 ).
 
-%% doc Loads the seeds of rack for a configuration.
+%% @doc Loads the seeds of rack for a configuration.
 -spec get_rack_seeds( gossiperl_config() ) -> [ binary() ].
 get_rack_seeds( Config = #overlayConfig{} ) ->
   { _, Seeds } = lists:keyfind( Config#overlayConfig.rack_name, 1, Config#overlayConfig.racks ),
   Seeds.
 
-%% doc If configurig with iface, ensure binding to an IP address of that iface.
+%% @doc If configurig with iface, ensure binding to an IP address of that iface.
 -spec network_adapter( gossiperl_config() ) -> gossiperl_config() | { error, term() }.
 network_adapter(Config = #overlayConfig{}) ->
   case Config#overlayConfig.iface of
@@ -109,14 +109,14 @@ network_adapter(Config = #overlayConfig{}) ->
       end
   end.
 
-%% doc Stores configuration of an overlay.
+%% @doc Stores configuration of an overlay.
 -spec store_config( gossiperl_config() ) -> gossiperl_config().
 store_config(Config = #overlayConfig{}) ->
   Config2 = Config#overlayConfig{ seeds = get_rack_seeds( Config ) },
   true = ets:insert(gossiperl_overlay_configuration, { list_to_binary( Config2#overlayConfig.internal#internalConfig.nameList ), Config2 } ),
   Config2.
 
-%% doc Get configuration for an overlay.
+%% @doc Get configuration for an overlay.
 -spec for_overlay( atom() | list() | binary() ) -> { ok, gossiperl_config() } | { error, no_config }.
 for_overlay(OverlayName) when is_atom(OverlayName) ->
   for_overlay( atom_to_list( OverlayName ) );
@@ -128,12 +128,12 @@ for_overlay(OverlayName) when is_binary(OverlayName) ->
     []         -> { error, no_config }
   end.
 
-%% doc List available overlay configurations.
+%% @doc List available overlay configurations.
 -spec list_overlays() -> [ { atom(), gossiperl_config() } ].
 list_overlays() ->
   lists:flatten( ets:match(gossiperl_overlay_configuration, '$1') ).
 
-%% doc Given the data read and parsed from JSON file, return populated configuration record.
+%% @doc Given the data read and parsed from JSON file, return populated configuration record.
 -spec configuration_from_json( [ { binary(), any() } ], atom() ) -> { ok, gossiperl_config() } | { error, { atom(), any() } }.
 configuration_from_json( JsonData, OverlayName ) when is_atom(OverlayName) ->
   Configuration = lists:foldl(fun( JsonProperty, Record ) ->
@@ -277,7 +277,7 @@ configuration_property_from_json(<<"iv">>, FieldValue, ConfigurationRecord) ->
 configuration_property_from_json(FieldName, _, _) ->
   { error, { badarg, FieldName } }.
 
-%% doc Run additional validation checks of the configuration.
+%% @doc Run additional validation checks of the configuration.
 -spec validate( gossiperl_config() ) -> { ok, gossiperl_config() } | { error, no_rack_seeds }.
 validate(Configuration) ->
   %% Check that `racks` contains `seeds` for for `rack_name`:
@@ -287,7 +287,7 @@ validate(Configuration) ->
     false           -> { error, no_rack_seeds }
   end.
 
-%% doc Load list op inet IPs from the rack settings.
+%% @doc Load list op inet IPs from the rack settings.
 -spec maybe_rack_data({ rack_name(), [ binary() ] }) -> { rack_name(), [ ip4_address() ] } | { error, { atom(), any() } }.
 maybe_rack_data({ RackName, SeedList }) when is_binary(RackName) andalso is_list(SeedList) ->
   MaybeSeeds = [ gossiperl_common:parse_binary_ip( BinIp ) || BinIp <- SeedList ],
@@ -300,7 +300,7 @@ maybe_rack_data(Value) ->
   { error, { rack_settings_invalid, Value } }.
 
 
-%% doc Get data as binary or error.
+%% @doc Get data as binary or error.
 -spec as_binary( any() ) -> binary() | { error, { not_binary, any() } }.
 as_binary(Value) ->
   case is_binary(Value) of
@@ -308,7 +308,7 @@ as_binary(Value) ->
     false -> { error, { not_binary, Value } }
   end.
 
-%% doc Get data as inet IP address.
+%% @doc Get data as inet IP address.
 -spec as_ip( any() ) -> { ok, ip4_address() } | { error, { not_binary, any() } } | { error, { not_ip, any() } }.
 as_ip(Value) ->
   case as_binary(Value) of
@@ -319,7 +319,7 @@ as_ip(Value) ->
                        end
   end.
 
-%% doc Get data as integer or error.
+%% @doc Get data as integer or error.
 -spec as_integer( any() ) -> integer() | { error, { not_integer, any() } }.
 as_integer(Value) ->
   case is_integer(Value) of

@@ -112,7 +112,7 @@ handle_call(_Msg, _From, LoopData) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
-%% doc Checks the existence of Authorization header.
+%% @doc Checks the existence of Authorization header.
 -spec credentials( Req :: cowboy_req:req() ) -> { binary(), binary(), cowboy_req:req() } | { undefined, undefined, cowboy_req:req() }.
 credentials(Req) ->
   AuthorizationHeader = cowboy_req:header( <<"authorization">>, Req, undefined ),
@@ -124,7 +124,7 @@ credentials(Req) ->
       {Username, Password, Req}
   end.
 
-%% doc Reads encoded Basic credentials from the Authorization header.
+%% @doc Reads encoded Basic credentials from the Authorization header.
 -spec credentials_from_header( binary() ) -> { binary(), binary() } | { undefined, undefined }.
 credentials_from_header(AuthorizationHeader) when is_binary( AuthorizationHeader ) ->
   case binary:split(AuthorizationHeader, <<" ">>) of
@@ -132,7 +132,7 @@ credentials_from_header(AuthorizationHeader) when is_binary( AuthorizationHeader
     _                                 -> {undefined, undefined}
   end.
 
-%% doc Reads encoded Basic credentials from the Authorization header.
+%% @doc Reads encoded Basic credentials from the Authorization header.
 -spec decoded_credentials( binary() ) -> { binary(), binary() } | { undefined, undefined }.
 decoded_credentials(EncodedCredentials) when is_binary( EncodedCredentials ) ->
   DecodedCredentials = base64:decode(EncodedCredentials),
@@ -141,7 +141,7 @@ decoded_credentials(EncodedCredentials) when is_binary( EncodedCredentials ) ->
     _                    -> {undefined, undefined}
   end.
 
-%% doc Attempts token authentication, first tests the X-Session-Token header, then Authorization.
+%% @doc Attempts token authentication, first tests the X-Session-Token header, then Authorization.
 -spec token_authentication( gossiperl_config(), cowboy_req:req() ) -> { ok, token_ok } | { error, token_auth_error() }.
 token_authentication(Config, Req) ->
   %stored token found for the overlay, check if x-session-token header given:

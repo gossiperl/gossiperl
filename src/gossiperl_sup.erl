@@ -43,7 +43,7 @@ init([]) ->
     ?GOSSIPER_MEMBER( gossiperl_serialization ),
     ?GOSSIPER_MEMBER( gossiperl_statistics ) ]}}.
 
-%% doc Add an overlay and start it.
+%% @doc Add an overlay and start it.
 -spec add_overlay( atom(), gossiperl_config() ) -> supervisor:startchild_ret() | supervisor:startchild_err() | { error, { atom(), any() } }.
 add_overlay(OverlayName, Config = #overlayConfig{}) when is_atom(OverlayName) ->
   case gossiperl_configuration:validate( Config ) of
@@ -53,7 +53,7 @@ add_overlay(OverlayName, Config = #overlayConfig{}) when is_atom(OverlayName) ->
       { error, Reason }
   end.
 
-%% doc Reconfigure running overlay with new configuration record.
+%% @doc Reconfigure running overlay with new configuration record.
 -spec reconfigure_overlay( gossiperl_config(), gossiperl_config() ) -> { ok, gossiperl_config(), gossiperl_config() } | { error, atom() }.
 reconfigure_overlay( OldConfig = #overlayConfig{}, NewConfig = #overlayConfig{} ) ->
   case gossiperl_configuration:validate( NewConfig ) of
@@ -66,7 +66,7 @@ reconfigure_overlay( OldConfig = #overlayConfig{}, NewConfig = #overlayConfig{} 
       { error, Reason }
   end.
 
-%% doc Stop and remove overlay.
+%% @doc Stop and remove overlay.
 -spec remove_overlay( atom(), gossiperl_config() ) -> true | {error, overlay_removal_error()} | {error, overlay_termination_error()}.
 remove_overlay(OverlayName, Config = #overlayConfig{}) when is_atom(OverlayName) ->
   _ = gen_server:call( ?MESSAGING( Config ), stop ),
@@ -82,17 +82,17 @@ remove_overlay(OverlayName, Config = #overlayConfig{}) when is_atom(OverlayName)
       {error, Reason}
   end.
 
-%% doc List names of running overlays.
+%% @doc List names of running overlays.
 -spec list_overlays() -> [ atom() ].
 list_overlays() ->
   [ OverlayName || { OverlayName, _OverlayData } <- gossiperl_configuration:list_overlays() ].
 
-%% doc List names of running overlays.
+%% @doc List names of running overlays.
 -spec list_overlays(with_tokens) -> [ [ { binary(), binary() } ] ].
 list_overlays(with_tokens) ->
   [ [ { OverlayName, OverlayData#overlayConfig.internal#internalConfig.webToken } ] || { OverlayName, OverlayData } <- gossiperl_configuration:list_overlays() ].
 
-%% doc Called by application:prep_stop.
+%% @doc Called by application:prep_stop.
 -spec stop_overlays() -> ok.
 stop_overlays() ->
   [ begin

@@ -130,18 +130,16 @@ handle_call(_Msg, _From, LoopData) ->
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
-%% doc Serializes Erlang term to Thrift
+%% @doc Serializes Erlang term to Thrift
 -spec digest_to_binary( term(), term(), term() ) -> binary().
 digest_to_binary(Digest, StructInfo, OutThriftProtocol) ->
-  %{ok, Transport} = thrift_memory_buffer:new(),
-  %{ok, Protocol} = thrift_binary_protocol:new(Transport),
   {PacketThrift, ok} = thrift_protocol:write (OutThriftProtocol,
     {{struct, element(2, StructInfo)}, Digest}),
   {protocol, _, OutProtocol} = PacketThrift,
   {transport, _, OutTransport} = OutProtocol#binary_protocol.transport,
   iolist_to_binary(OutTransport#memory_buffer.buffer).
 
-%% doc Deserializes Thrift data to Erlang term.
+%% @doc Deserializes Thrift data to Erlang term.
 -spec digest_from_binary( atom(), binary() ) -> { ok, term() } | { error, not_thrift }.
 digest_from_binary(DigestType, BinaryDigest) ->
   {ok, InTransport} = thrift_memory_buffer:new(BinaryDigest),
@@ -153,7 +151,7 @@ digest_from_binary(DigestType, BinaryDigest) ->
       {error, not_thrift}
   end.
 
-%% doc Get digest type as atom. Avoid convertion to atoms using erlang functions.
+%% @doc Get digest type as atom. Avoid convertion to atoms using erlang functions.
 -spec digest_type_as_atom( binary() ) -> { ok, atom() } | { error, binary() }.
 digest_type_as_atom(<<"digestError">>)                 -> { ok, digestError };
 digest_type_as_atom(<<"digestForwardedAck">>)          -> { ok, digestForwardedAck };
