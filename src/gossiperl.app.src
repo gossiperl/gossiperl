@@ -38,5 +38,5 @@
               gossiperl_subscriptions_qos1_redelivery,
               gossiperl_web]},
   {registered, gossiperl_sup},
-  {applications, [kernel, stdlib, crypto, thrift, cowboy]},
+  {applications, [kernel, stdlib, crypto, erlsha2, thrift, cowboy]},
   {mod, {gossiperl_app, []}}]}.

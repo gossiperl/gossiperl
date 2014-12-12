@@ -31,7 +31,7 @@ start_link(Config) ->
   gen_server:start_link({local, ?ENCRYPTION(Config)}, ?MODULE, [Config], []).
 
 init([Config]) ->
-  {ok, { encryption, Config }}.
+  {ok, { encryption, Config#overlayConfig{ symmetric_key = erlsha2:sha256( Config#overlayConfig.symmetric_key ) } }}.
 
 stop() -> gen_server:cast(?MODULE, stop).
 
@@ -43,7 +43,7 @@ handle_cast(stop, LoopData) ->
 
 handle_info({ update_config, NewConfig = #overlayConfig{} }, {encryption, _Config}) ->
   gossiperl_log:notice("[~p] Reconfiguring encryption component with ~p.", [ NewConfig#overlayConfig.name, NewConfig ]),
-  {noreply, {encryption, NewConfig}};
+  {noreply, {encryption, NewConfig#overlayConfig{ symmetric_key = erlsha2:sha256( NewConfig#overlayConfig.symmetric_key ) }}};
 
 %% @doc Encrypt Msg and deliver to a caller.
 handle_info({ encrypt, MsgType, Msg, CallerPid, ReceivingMember = #digestMember{} }, { encryption, Config })
