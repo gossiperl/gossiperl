@@ -26,6 +26,7 @@ start() ->
   application:start(asn1),
   application:start(crypto),
   application:start(public_key),
+  application:start(erlsha2),
   application:start(thrift),
   application:start(quickrand),
   application:start(uuid),
