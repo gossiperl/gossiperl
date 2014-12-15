@@ -268,12 +268,6 @@ configuration_property_from_json(<<"symmetric_key">>, FieldValue, ConfigurationR
     _                            -> ConfigurationRecord#overlayConfig{ symmetric_key = FieldValue }
   end;
 
-configuration_property_from_json(<<"iv">>, FieldValue, ConfigurationRecord) ->
-  case as_binary(FieldValue) of
-    { error, { Reason, Cause } } -> { error, { Reason, Cause } };
-    _                            -> ConfigurationRecord#overlayConfig{ iv = FieldValue }
-  end;
-
 configuration_property_from_json(FieldName, _, _) ->
   { error, { badarg, FieldName } }.
 

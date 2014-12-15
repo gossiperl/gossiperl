@@ -48,7 +48,8 @@ handle_info({ update_config, NewConfig = #overlayConfig{} }, {encryption, _Confi
 %% @doc Encrypt Msg and deliver to a caller.
 handle_info({ encrypt, MsgType, Msg, CallerPid, ReceivingMember = #digestMember{} }, { encryption, Config })
   when is_atom(MsgType) andalso is_pid(CallerPid) ->
-  Encrypted = crypto:block_encrypt( aes_cbc256, Config#overlayConfig.symmetric_key, Config#overlayConfig.iv, ?AES_PAD( Msg ) ),
+  IV = crypto:next_iv( aes_cbc, Msg ),
+  Encrypted = crypto:block_encrypt( aes_cbc256, Config#overlayConfig.symmetric_key, IV, <<IV/binary, (?AES_PAD( Msg ))/binary>> ),
   CallerPid ! { message_encrypted, { ok,
                                      MsgType,
                                      Encrypted,
@@ -56,10 +57,10 @@ handle_info({ encrypt, MsgType, Msg, CallerPid, ReceivingMember = #digestMember{
   {noreply, { encryption, Config }};
 
 %% @doc Decrypt Msg and deliver to a caller, forward given state.
-handle_info({ decrypt, Msg, CallerPid, State }, { encryption, Config })
+handle_info({ decrypt, <<IV:16/binary, Msg/binary>>, CallerPid, State }, { encryption, Config })
   when is_pid(CallerPid) ->
   try
-    Decrypted = crypto:block_decrypt( aes_cbc256, Config#overlayConfig.symmetric_key, Config#overlayConfig.iv, Msg ),
+    Decrypted = crypto:block_decrypt( aes_cbc256, Config#overlayConfig.symmetric_key, IV, Msg ),
     CallerPid ! { message_decrypted, { ok,
                                        Decrypted,
                                        State } }

@@ -41,7 +41,6 @@
           member_name :: binary(),
           name :: atom(),
           symmetric_key :: binary(),
-          iv :: binary(),
           secret = <<"default-overlay-secret">> :: binary(),
           internal = #internalConfig{} :: #internalConfig{} }).
 
