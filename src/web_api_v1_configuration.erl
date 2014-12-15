@@ -67,8 +67,7 @@ reply(<<"GET">>, Req) ->
             { outgoing_data_buffer_size, OverlayConfig#overlayConfig.outgoing_data_buffer_size },
             { read_packet_count, OverlayConfig#overlayConfig.read_packet_count },
             { secret, <<"protected">> },
-            { symmetric_key, <<"protected">> },
-            { iv, <<"protected">> }
+            { symmetric_key, <<"protected">> }
           ],
           Response = jsx:encode( [
             { configuration, OutConfiguration },
