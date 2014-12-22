@@ -10,6 +10,12 @@ Every overlay uses its own separate configuration. Such overlays behave as compl
 
 Gossiperl client applications can publish and subscribe to digest types provided by other applications.
 
+## Client libraries:
+
+- [Erlang](https://github.com/radekg/gossiperl-client-erlang)
+- [Ruby](https://github.com/radekg/gossiperl-client-ruby)
+- [JVM languages](https://github.com/radekg/gossiperl-client-jvm)
+
 ## Documentation
 
 https://github.com/radekg/gossiperl/wiki
