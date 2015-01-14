@@ -12,13 +12,15 @@ Gossiperl client applications can publish and subscribe to digest types provided
 
 ## Client libraries:
 
-- [Erlang](https://github.com/radekg/gossiperl-client-erlang)
-- [Ruby](https://github.com/radekg/gossiperl-client-ruby)
-- [JVM languages](https://github.com/radekg/gossiperl-client-jvm)
+- [Erlang](https://github.com/gossiperl/gossiperl-client-erlang)
+- [Ruby](https://github.com/gossiperl/gossiperl-client-ruby)
+- [JVM languages](https://github.com/gossiperl/gossiperl-client-jvm)
+- [.NET languages](https://github.com/gossiperl/gossiperl-client-dotnet)
+- [JavaScript](https://github.com/gossiperl/gossiperl-client-js)
 
 ## Documentation
 
-https://github.com/radekg/gossiperl/wiki
+https://github.com/gossiperl/gossiperl/wiki
 
 ## Author
 
