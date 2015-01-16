@@ -2,6 +2,7 @@
 .vagrant
 *.beam
 .rebar
+bin/rebar-src
 deps/**
 ebin/**
 rebar
