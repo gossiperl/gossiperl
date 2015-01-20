@@ -27,6 +27,7 @@
 
 -include("gossiperl.hrl").
 
+% TODO: import these 2 from thrift library:
 -record(binary_protocol, {transport,
                           strict_read=true,
                           strict_write=true

@@ -18,12 +18,21 @@ gossiperl_test_() ->
     fun test_invalid3_configuration_from_json/0,
     fun no_seeds_for_a_rack/0,
     fun configuration_with_member_name/0,
-    fun configuration_process/0
+    fun configuration_process/0,
+    fun test_serialize_deserialize/0,
+    fun test_add_remove_overlay/0,
+    fun test_encrypt_decrypt/0
     ] }.
 
 -define(OVERLAY, test_overlay).
 -define(COMMON, gossiperl_common).
 -define(CONFIG, gossiperl_configuration).
+
+-define(DIGEST_NAME, <<"client-name">>).
+-define(DIGEST_PORT, 6666).
+-define(DIGEST_HEARTBEAT, 1421450191).
+-define(DIGEST_ID, <<"digest-id">>).
+-define(DIGEST_SECRET, <<"digest-secret">>).
 
 start() ->
   Applications = [ asn1, crypto, public_key, erlsha2, jsx, thrift,
@@ -110,13 +119,13 @@ test_valid_configuration_from_json() ->
 
 test_invalid1_configuration_from_json() ->
   % port is not numeric:
-  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": \"6666\", \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"192.168.50.100\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": \"6666\", \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
   ParseData = jsx:decode( Configuration ),
   ?assertMatch({ error, _ }, ?CONFIG:configuration_from_json(ParseData, ?OVERLAY)).
 
 test_invalid2_configuration_from_json() ->
   % IP address in not an IP address:
-  Configuration = <<"{ \"ip\": \"no an ip address\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"192.168.50.100\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = <<"{ \"ip\": \"no an ip address\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
   ParseData = jsx:decode( Configuration ),
   ?assertMatch({ error, _ }, ?CONFIG:configuration_from_json(ParseData, ?OVERLAY)).
 
@@ -128,13 +137,13 @@ test_invalid3_configuration_from_json() ->
 
 no_seeds_for_a_rack() ->
   % made up interface name:
-  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"some_other_rack\": [\"192.168.50.100\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"some_other_rack\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
   { ok, ParseConfiguration } = ?CONFIG:configuration_from_json( jsx:decode( Configuration ), ?OVERLAY ),
   ValidationResult = ?CONFIG:validate( ParseConfiguration ),
   ?assertMatch({ error, _ }, ValidationResult).
 
 configuration_with_member_name() ->
-  Configuration = <<"{ \"member_name\": \"hello_world\", \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"192.168.50.100\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = <<"{ \"member_name\": \"hello_world\", \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
   JsonData = jsx:decode( Configuration ),
   ParseResult = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
   ?assertMatch( { ok,_ }, ParseResult ),
@@ -143,7 +152,7 @@ configuration_with_member_name() ->
   ?assertEqual( SetupConfig#overlayConfig.member_name, <<"hello_world">> ).
 
 configuration_process() ->
-  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"192.168.50.100\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
   JsonData = jsx:decode( Configuration ),
   ParseResult = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
   ?assertMatch( { ok,_ }, ParseResult ),
@@ -158,7 +167,76 @@ configuration_process() ->
   ?assertEqual( true, ?CONFIG:remove_configuration_for( ?OVERLAY ) ),
   ?assertEqual( 0, length( ?CONFIG:list_overlays() ) ).
 
-% Encryption
-
 % Serialization
+test_serialize_deserialize() ->
+  Digest = #digest{ name      = ?DIGEST_NAME,
+                    port      = ?DIGEST_PORT,
+                    heartbeat = ?DIGEST_HEARTBEAT,
+                    id        = ?DIGEST_ID,
+                    secret    = ?DIGEST_SECRET },
+  SerializeResult = gen_server:call( gossiperl_serialization, { serialize, digest, Digest } ),
+  ?assertMatch( { ok, _, _ }, SerializeResult ),
+  { ok, SerializedData, _ } = SerializeResult,
+  DeserializeResult = gen_server:call( gossiperl_serialization, { deserialize, SerializedData } ),
+  ?assertMatch( { ok, _, _ }, DeserializeResult ),
+  { ok, PayloadType, Deserialized } = DeserializeResult,
+  ?assertEqual( digest, PayloadType ),
+  ?assertMatch( { digest, _, _, _, _, _ }, Deserialized ),
+  ?assertEqual( ?DIGEST_NAME, Deserialized#digest.name ),
+  ?assertEqual( ?DIGEST_PORT, Deserialized#digest.port ),
+  ?assertEqual( ?DIGEST_HEARTBEAT, Deserialized#digest.heartbeat ),
+  ?assertEqual( ?DIGEST_ID, Deserialized#digest.id ),
+  ?assertEqual( ?DIGEST_SECRET, Deserialized#digest.secret ).
 
+% Add / remove overlay basics:
+test_add_remove_overlay() ->
+  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  JsonData = jsx:decode( Configuration ),
+  ParseResult = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
+  { ok, ParseConfiguration } = ParseResult,
+  ?assertMatch( { ok, _ }, gossiperl_sup:add_overlay( ?OVERLAY, ParseConfiguration ) ),
+  ?assertEqual( [ list_to_binary(atom_to_list(?OVERLAY)) ], gossiperl_sup:list_overlays() ),
+  LoadConfiguratonResult = begin timer:sleep(1000), ?CONFIG:for_overlay( ?OVERLAY ) end,
+  ?assertMatch( { ok, { _, _ } }, LoadConfiguratonResult ),
+  { ok, { _, LoadedConfiguration } } = LoadConfiguratonResult,
+  ?assertEqual( true, gossiperl_sup:remove_overlay( ?OVERLAY, LoadedConfiguration ) ),
+  ?assertEqual( [], gossiperl_sup:list_overlays() ).
+
+% Encryption
+test_encrypt_decrypt() ->
+  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  JsonData = jsx:decode( Configuration ),
+  { ok, ParseConfiguration } = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
+  
+  % add overlay:
+  gossiperl_sup:add_overlay( ?OVERLAY, ParseConfiguration ),
+  
+  % give it time to start, it's async, load configuration:
+  LoadConfiguratonResult = begin timer:sleep(1000), ?CONFIG:for_overlay( ?OVERLAY ) end,
+  { ok, { _, LoadedConfiguration } } = LoadConfiguratonResult,
+
+  % create a digest
+  Digest = #digest{ name      = ?DIGEST_NAME,
+                    port      = ?DIGEST_PORT,
+                    heartbeat = ?DIGEST_HEARTBEAT,
+                    id        = ?DIGEST_ID,
+                    secret    = ?DIGEST_SECRET },
+
+  % serialize the digest:
+  { ok, SerializedData, _ } = gen_server:call( gossiperl_serialization, { serialize, digest, Digest } ),
+  EncryptionResult          = gen_server:call( ?ENCRYPTION(LoadedConfiguration), { encrypt, SerializedData } ),
+  ?assertMatch( { ok, _ }, EncryptionResult ),
+  { ok, Encrypted }         = EncryptionResult,
+  DecryptionResult          = gen_server:call( ?ENCRYPTION(LoadedConfiguration), { decrypt, Encrypted } ),
+  { ok, Decrypted }         = DecryptionResult,
+  DeserializeResult = gen_server:call( gossiperl_serialization, { deserialize, SerializedData } ),
+  ?assertMatch( { ok, _, _ }, DeserializeResult ),
+  { ok, PayloadType, Deserialized } = DeserializeResult,
+  ?assertEqual( digest, PayloadType ),
+  ?assertMatch( { digest, _, _, _, _, _ }, Deserialized ),
+  ?assertEqual( ?DIGEST_NAME, Deserialized#digest.name ),
+  ?assertEqual( ?DIGEST_PORT, Deserialized#digest.port ),
+  ?assertEqual( ?DIGEST_HEARTBEAT, Deserialized#digest.heartbeat ),
+  ?assertEqual( ?DIGEST_ID, Deserialized#digest.id ),
+  ?assertEqual( ?DIGEST_SECRET, Deserialized#digest.secret ),
+  gossiperl_sup:remove_overlay( ?OVERLAY, LoadedConfiguration ).
