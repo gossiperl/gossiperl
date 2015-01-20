@@ -57,28 +57,18 @@ handle_info({ update_config, NewConfig = #overlayConfig{} }, {messaging, _Config
 
 %% SENDING
 
-%% @doc Begins the procedure of sending a digest to a member.
+%% @doc Sends the digest to a member.
 handle_info({ send_digest, Member = #digestMember{}, DigestType, Digest }, {messaging, Config}) when is_atom(DigestType) ->
-  gossiperl_serialization ! { serialize, DigestType, Digest, self(), Member },
-  {noreply, {messaging, Config}};
-
-%% @doc Called by the serialization module upon successful serialization.
-handle_info({ message_serialized, { ok, SerializedMessageType, SerializedMessage, ReceivingMember = #digestMember{} } }, {messaging, Config})
-  when is_atom(SerializedMessageType) andalso is_binary(SerializedMessage) ->
-  ?ENCRYPTION( Config ) ! { encrypt, SerializedMessageType, SerializedMessage, self(), ReceivingMember },
-  {noreply, {messaging, Config}};
-
-%% @doc Called by the encryption module upon successful encryption.
-handle_info({ message_encrypted, { ok, DigestType, MaybeEncrypted, ReceivingMember = #digestMember{} } }, {messaging, Config})
-  when is_atom(DigestType) and is_binary(MaybeEncrypted) ->
+  { ok, SerializedDigest, _ } = gen_server:call( gossiperl_serialization, { serialize, DigestType, Digest }, 5000 ),
+  { ok, MaybeEncrypted }      = gen_server:call( ?ENCRYPTION( Config ), { encrypt, SerializedDigest } ),
   gen_server:cast( gossiperl_statistics, { record,
                                            list_to_binary(atom_to_list(Config#overlayConfig.name)),
                                            { data, DigestType, out },
                                            byte_size(MaybeEncrypted) } ),
   gen_udp:send(
     Config#overlayConfig.internal#internalConfig.socket,
-    gossiperl_common:parse_binary_ip( ReceivingMember#digestMember.member_ip ),
-    ReceivingMember#digestMember.member_port,
+    gossiperl_common:parse_binary_ip( Member#digestMember.member_ip ),
+    Member#digestMember.member_port,
     MaybeEncrypted ),
   {noreply, {messaging, Config}};
 
@@ -86,16 +76,23 @@ handle_info({ message_encrypted, { ok, DigestType, MaybeEncrypted, ReceivingMemb
 
 %% @doc gen_udp callback, initializes receiving process by passing the message for decryption.
 handle_info({udp, _ClientSocket, ClientIp, ClientPort, Msg}, {messaging, Config}) ->
+  case gen_server:call( ?ENCRYPTION( Config ), { decrypt, Msg } ) of
+    { ok, MaybeDecrypted } ->
+      % deserialize:
+      DeserializeResult = gen_server:call( gossiperl_serialization, { deserialize, MaybeDecrypted } ),
+      self() ! { message_deserialized, DeserializeResult, { ClientIp, ClientPort, Msg } };
+    { error, Reason } ->
+      gen_server:cast( gossiperl_statistics, { record,
+                                               list_to_binary(atom_to_list(Config#overlayConfig.name)),
+                                               { message_failed, decrypt, in },
+                                               1 } ),
+      gossiperl_log:err("[~p] Message decrypt failed. Reason ~p.", [Config#overlayConfig.name, Reason])
+  end,
   ?ENCRYPTION( Config ) ! { decrypt, Msg, self(), { ClientIp, ClientPort, Msg } },
   {noreply, {messaging, Config}};
 
-%% @doc Called by the encryption module after successful decryption.
-handle_info({ message_decrypted, { ok, MaybeDecrypted, State } }, {messaging, Config}) when is_binary(MaybeDecrypted) ->
-  gossiperl_serialization ! { deserialize, MaybeDecrypted, self(), State },
-  {noreply, {messaging, Config}};
-
 %% @doc Called by the serialization module after successful deserialization.
-handle_info({ message_deserialized, { ok, DecodedPayloadType, DecodedPayload, State } }, {messaging, Config}) ->
+handle_info({ message_deserialized, { ok, DecodedPayloadType, DecodedPayload }, State }, {messaging, Config}) ->
   { ClientIp, ClientPort, OriginalMessage } = State,
   gen_server:cast( gossiperl_statistics, { record,
                                            list_to_binary(atom_to_list(Config#overlayConfig.name)),
@@ -106,7 +103,7 @@ handle_info({ message_deserialized, { ok, DecodedPayloadType, DecodedPayload, St
   {noreply, {messaging, Config}};
 
 %% @doc Processing a digest type not recognised by gossiperl. These are forwardable messages. Notifies subscribers and replies with digestForwardedAck.
-handle_info({ message_deserialized, {forwardable, ForwardedMessageType, DigestEnvelopeBinary, ForwardedDigestId, State} }, {messaging, Config})
+handle_info({ message_deserialized, {forwardable, ForwardedMessageType, DigestEnvelopeBinary, ForwardedDigestId }, State }, {messaging, Config})
   when is_binary(ForwardedMessageType) andalso is_binary(DigestEnvelopeBinary)
                                        andalso is_binary(ForwardedDigestId) ->
   { ClientIp, ClientPort, _OriginalMessage } = State,
@@ -218,17 +215,8 @@ handle_info({ message, digestForwardedAck, DecodedPayload, _Client }, { messagin
 
 %% ERROR HANDLING
 
-%% @doc Handle message decryption error.
-handle_info({ message_decrypted, { error, Reason } }, {messaging, Config}) ->
-  gen_server:cast( gossiperl_statistics, { record,
-                                           list_to_binary(atom_to_list(Config#overlayConfig.name)),
-                                           { message_failed, decrypt, in },
-                                           1 } ),
-  gossiperl_log:err("[~p] Message decrypt failed. Reason ~p.", [Config#overlayConfig.name, Reason]),
-  {noreply, {messaging, Config}};
-
 %% @doc Handle message deserialization error.
-handle_info({ message_deserialized, {error, Reason} }, {messaging, Config}) ->
+handle_info({ message_deserialized, {error, Reason}, _ }, {messaging, Config}) ->
   gen_server:cast( gossiperl_statistics, { record,
                                            list_to_binary(atom_to_list(Config#overlayConfig.name)),
                                            { message_failed, decode, in },
