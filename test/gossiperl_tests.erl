@@ -2,6 +2,7 @@
 -include_lib("eunit/include/eunit.hrl").
 
 -include_lib("gossiperl.hrl").
+-include_lib("gossiperl_tests.hrl").
 
 gossiperl_test_() ->
   {setup, fun start/0, fun stop/1, [
@@ -35,17 +36,14 @@ gossiperl_test_() ->
 -define(DIGEST_SECRET, <<"digest-secret">>).
 
 start() ->
-  Applications = [ asn1, crypto, public_key, erlsha2, jsx, thrift,
-                   quickrand, uuid, cowlib, ranch, cowboy,
-                   syntax_tools, compiler, goldrush,
-                   lager, uuid, gossiperl ],
   [ begin
       Result = application:start(App),
       error_logger:info_msg("Starting application ~p: ~p", [ App, Result ] )
-    end || App <- Applications ],
+    end || App <- ?APPLICATIONS ],
   ok.
 
 stop(_State) ->
+  [ application:stop(App) || App <- ?APPLICATIONS ],
   noreply.
 
 % Common
