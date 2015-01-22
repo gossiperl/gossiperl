@@ -22,6 +22,10 @@ Gossiperl client applications can publish and subscribe to digest types provided
 
 https://github.com/gossiperl/gossiperl/wiki
 
+## Unit tests
+
+    ./rebar clean get-deps compile eunit
+
 ## Author
 
 Radoslaw Gruchalski <radek@gruchalski.com>
