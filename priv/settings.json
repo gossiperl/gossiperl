@@ -1,8 +1,8 @@
 {
   "rest_ssl": {
-    "cacertfile": "/etc/gossiperl/gossiperl_ca.crt",
-    "certfile": "/etc/gossiperl/gossiperl.cert.pem",
-    "keyfile": "/etc/gossiperl/gossiperl.key.pem"
+    "cacertfile": "ssl/gossiperl_ca.crt",
+    "certfile": "ssl/gossiperl.cert.pem",
+    "keyfile": "ssl/gossiperl.key.pem"
   },
   "superuser": {
     "username": "superuser",

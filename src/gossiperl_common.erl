@@ -26,7 +26,9 @@
   get_all_ipv4_addrs/0,
   parse_binary_ip/1,
   seed_random/0,
-  binary_join/2]).
+  binary_join/2,
+  locate_file/1,
+  privdir/0]).
 
 -include("gossiperl.hrl").
 
@@ -108,3 +110,20 @@ binary_join(List, Sep) ->
       true -> A
     end
   end, <<>>, List).
+
+locate_file(Filename) ->
+  case string:substr(Filename, 1, 1) of
+    "/" ->
+      Filename;
+    _ ->
+      filename:join( privdir(), Filename )
+  end.
+
+privdir() ->
+  case code:priv_dir(gossiperl) of
+    {error, _} ->
+      EbinDir = filename:dirname(code:which(?MODULE)),
+      AppPath = filename:dirname(EbinDir),
+      filename:join(AppPath, "priv");
+    Dir -> Dir
+  end.
