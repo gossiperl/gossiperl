@@ -3,7 +3,7 @@ language: erlang
 otp_release:
   - 17.0
 
-sudo: false
+sudo: sudo
 
 before_script:
   - "mkdir -p /etc/gossiperl &"
