@@ -3,12 +3,7 @@ language: erlang
 otp_release:
   - 17.0
 
-sudo: sudo
-
-before_script:
-  - "mkdir -p /etc/gossiperl &"
-  - "cp ./priv/ssl/* /etc/gossiperl &"
-  - "mv /etc/gossiperl/settings.json.example /etc/gossiperl/settings.json &"
+sudo: false
 
 script: "rebar clean get-deps compile eunit"
 
