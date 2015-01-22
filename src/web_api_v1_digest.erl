@@ -38,13 +38,15 @@ reply(<<"POST">>, Req) ->
             case jsx:decode( Data ) of
               [ { DigestType, DigestData }, { <<"recipient_ip">>, RecipientIp }, { <<"recipient_port">>, RecipientPort } ] ->
                 Member = #digestMember{ member_ip = RecipientIp, member_port = RecipientPort },
-                spawn(fun() -> deliver_digest( list_to_atom(binary_to_list(DigestType)), DigestData, OverlayConfig, Member ) end),
-                cowboy_req:reply(200, [
+                % TODO: this isn't right, we should avoid changin to atom:
+                deliver_digest( list_to_atom(binary_to_list(DigestType)), DigestData, OverlayConfig, Member ),
+                cowboy_req:reply(202, [
                   {<<"content-type">>, <<"application/json; charset=utf-8">>}
                 ], jsx:encode( [{ status, <<"ok">> }] ), Req);
               [ { DigestType, DigestData } ] ->
-                spawn(fun() -> deliver_digest( list_to_atom(binary_to_list(DigestType)), DigestData, OverlayConfig ) end),
-                cowboy_req:reply(200, [
+                % TODO: this isn't right, we should avoid changin to atom:
+                deliver_digest( list_to_atom(binary_to_list(DigestType)), DigestData, OverlayConfig ),
+                cowboy_req:reply(202, [
                   {<<"content-type">>, <<"application/json; charset=utf-8">>}
                 ], jsx:encode( [{ status, <<"ok">> }] ), Req);
               _ ->
@@ -74,17 +76,23 @@ reply(_, Req) ->
 
 deliver_digest(DigestType, DigestData, OverlayConfig, Member) when is_atom(DigestType) ->
   { StructInfo, RecordTuple } = get_digest_record_from_string(DigestType, DigestData),
-  gossiperl_serialization ! { serialize,
-                             DigestType,
-                             eval_string( RecordTuple ),
-                             StructInfo,
-                             ?MESSAGING( OverlayConfig ),
-                             Member }.
+  { ok, SerializedDigest, _ } = gen_server:call( gossiperl_serialization, { serialize,
+                                                                            DigestType,
+                                                                            eval_string( RecordTuple ),
+                                                                            StructInfo } ),
+  ?MESSAGING( OverlayConfig ) ! { send_digest, Member, digestEnvelope, SerializedDigest }.
 
 deliver_digest(DigestType, DigestData, OverlayConfig) when is_atom(DigestType) ->
-  { StructInfo, RecordTuple } = get_digest_record_from_string(DigestType, DigestData),
-  { message_serialized, { ok, DigestType, DigestBinaryEnvelope, MessageId } } = gen_server:call( gossiperl_serialization, { serialize, DigestType, eval_string( RecordTuple ), StructInfo } ),
-  ?SUBSCRIPTIONS(OverlayConfig) ! { notify, list_to_binary( atom_to_list( DigestType ) ), DigestBinaryEnvelope, { 0,0,0,0 }, MessageId }.
+  { StructInfo, RecordTuple }         = get_digest_record_from_string(DigestType, DigestData),
+  { ok, SerializedDigest, MessageId } = gen_server:call( gossiperl_serialization, { serialize,
+                                                                                    DigestType,
+                                                                                    eval_string( RecordTuple ),
+                                                                                    StructInfo } ),
+  ?SUBSCRIPTIONS(OverlayConfig) ! { notify,
+                                    list_to_binary( atom_to_list( DigestType ) ),
+                                    SerializedDigest,
+                                    { 0,0,0,0 },
+                                    MessageId }.
 
 get_digest_record_from_string( DigestType, DigestData ) ->
   { BinaryRecord, StructInfo } = json_to_erlang_data( DigestData ),

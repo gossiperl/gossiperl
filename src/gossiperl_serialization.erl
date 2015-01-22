@@ -27,6 +27,7 @@
 
 -include("gossiperl.hrl").
 
+% TODO: import these 2 from thrift library:
 -record(binary_protocol, {transport,
                           strict_read=true,
                           strict_write=true
@@ -50,32 +51,33 @@ terminate(_Reason, _LoopData) ->
 handle_cast(stop, LoopData) ->
   {noreply, LoopData}.
 
-%% ASYNC SERIALIZE / DESERIALIZE:
+handle_info(_Info, LoopData) ->
+  {noreply, LoopData}.
 
-handle_info({ serialize, DigestType, Digest, CallerPid, ReceivingMember = #digestMember{} }, LoopData)
-  when is_atom(DigestType) andalso is_pid(CallerPid) ->
+%% SYNC SERIALIZE:
+
+handle_call({ serialize, DigestType, Digest }, From, { serialization, OutThriftProtocol })
+  when is_atom( DigestType ) ->
   case DigestType of
     digestEnvelope ->
-      CallerPid ! { message_serialized, { ok, DigestType, Digest, ReceivingMember } };
+      gen_server:reply( From, { ok, Digest } );
     _ ->
-      self() ! { serialize, DigestType, Digest, gossiperl_types:struct_info(DigestType), CallerPid, ReceivingMember }
+      gen_server:reply( From, serialize( DigestType,
+                                         Digest,
+                                         gossiperl_types:struct_info(DigestType),
+                                         OutThriftProtocol ) )
   end,
-  {noreply, LoopData};
+  { noreply, { serialization, OutThriftProtocol } };
 
-handle_info({ serialize, DigestType, Digest, StructInfo, CallerPid, ReceivingMember = #digestMember{} }, { serialization, OutThriftProtocol })
-  when is_atom(DigestType) andalso is_pid(CallerPid) ->
-  CallerPid ! { message_serialized, { ok, DigestType, digest_to_binary( #digestEnvelope{
-                                                        payload_type = atom_to_list(DigestType),
-                                                        bin_payload = base64:encode(digest_to_binary(Digest, StructInfo, OutThriftProtocol)),
-                                                        id = uuid:uuid_to_string(uuid:get_v4())
-                                                      },
-                                                      gossiperl_types:struct_info(digestEnvelope),
-                                                      OutThriftProtocol ),
-                                                      ReceivingMember } },
-  {noreply, { serialization, OutThriftProtocol } };
+handle_call({ serialize, DigestType, Digest, StructInfo }, From, { serialization, OutThriftProtocol })
+  when is_atom(DigestType) ->
+  gen_server:reply( From, serialize( DigestType,
+                                     Digest,
+                                     StructInfo,
+                                     OutThriftProtocol ) ),
+  { noreply, { serialization, OutThriftProtocol } };
 
-handle_info({ deserialize, BinaryDigest, CallerPid, State }, LoopData)
-  when is_binary(BinaryDigest) andalso is_pid(CallerPid) ->
+handle_call({ deserialize, BinaryDigest }, From, LoopData) when is_binary(BinaryDigest) ->
   try
     case digest_from_binary(digestEnvelope, BinaryDigest) of
       {ok, DecodedResult} ->
@@ -83,52 +85,40 @@ handle_info({ deserialize, BinaryDigest, CallerPid, State }, LoopData)
           { ok, PayloadTypeAtom } ->
             case digest_from_binary(PayloadTypeAtom, base64:decode(DecodedResult#digestEnvelope.bin_payload)) of
               { ok, DecodedResult2 } ->
-                CallerPid ! { message_deserialized, { ok, PayloadTypeAtom, DecodedResult2, State } };
+                gen_server:reply( From, { ok, PayloadTypeAtom, DecodedResult2 } );
               _ ->
                 gossiperl_log:err("Message could not be decoded."),
-                CallerPid ! { message_deserialized, { error, decode_binary_content_failed } }
+                gen_server:reply( From, { error, decode_binary_content_failed } )
             end;
           { error, UnsupportedPayloadType } ->
             gossiperl_log:err("Unsupprted message ~p.", [UnsupportedPayloadType]),
-            CallerPid ! { message_deserialized, { forwardable, UnsupportedPayloadType, BinaryDigest, DecodedResult#digestEnvelope.id, State } }
+            gen_server:reply( From, { forwardable, UnsupportedPayloadType, BinaryDigest, DecodedResult#digestEnvelope.id } )
         end;
       _ ->
         gossiperl_log:err("Could not open digestEnvelope."),
-        CallerPid ! { message_deserialized, {error, digest_envelope_open_failed} }
+        gen_sever:reply( From, {error, digest_envelope_open_failed} )
     end
   catch
     _Error:Reason ->
       gossiperl_log:err("Error while reading digest: ~p.", [Reason]),
-      CallerPid ! { message_deserialized, { error, digest_read } }
+      gen_server:reply( From, { error, digest_read } )
   end,
-  {noreply, LoopData};
-
-handle_info(_Info, LoopData) ->
   {noreply, LoopData}.
-
-%% SYNC SERIALIZE:
-
-handle_call({ serialize, DigestType, Digest, StructInfo }, From, { serialization, OutThriftProtocol })
-  when is_atom(DigestType) ->
-  MessageId = list_to_binary( uuid:uuid_to_string(uuid:get_v4()) ),
-  gen_server:reply( From, { message_serialized,
-                            { ok,
-                              DigestType,
-                              digest_to_binary( #digestEnvelope{
-                                                  payload_type = atom_to_list(DigestType),
-                                                  bin_payload = base64:encode(digest_to_binary(Digest, StructInfo, OutThriftProtocol)),
-                                                  id = MessageId
-                                                },
-                                                gossiperl_types:struct_info(digestEnvelope),
-                                                OutThriftProtocol ),
-                              MessageId } } ),
-  { noreply, { serialization, OutThriftProtocol } };
-
-handle_call(_Msg, _From, LoopData) ->
-  {reply, ok, LoopData}.
   
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
+
+%% doc Serializes a digest
+-spec serialize( atom(), term(), term(), term() ) -> binary().
+serialize( DigestType, Digest, StructInfo, OutThriftProtocol ) when is_atom(DigestType) ->
+  MessageId = list_to_binary( uuid:uuid_to_string(uuid:get_v4()) ),
+  { ok, digest_to_binary( #digestEnvelope{
+                              payload_type = atom_to_list(DigestType),
+                              bin_payload  = base64:encode(digest_to_binary(Digest, StructInfo, OutThriftProtocol)),
+                              id           = MessageId },
+                          gossiperl_types:struct_info(digestEnvelope),
+                          OutThriftProtocol ),
+                          MessageId }.
 
 %% doc Serializes Erlang term to Thrift
 -spec digest_to_binary( term(), term(), term() ) -> binary().

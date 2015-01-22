@@ -47,6 +47,7 @@ init(Config = #overlayConfig{}, Member = #digestMember{}, EventType, EventObject
 -spec attempt_delivery( gossiperl_config(), #digestMember{}, binary() ) -> ok.
 attempt_delivery(Config = #overlayConfig{}, Member = #digestMember{}, EventObject)
   when is_binary(EventObject) ->
+  % the digest here is decrypted but serialized:
   ?MESSAGING( Config ) ! { send_digest, Member, digestEnvelope, EventObject },
   ok.
 

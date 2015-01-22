@@ -45,33 +45,26 @@ handle_info({ update_config, NewConfig = #overlayConfig{} }, {encryption, _Confi
   gossiperl_log:notice("[~p] Reconfiguring encryption component with ~p.", [ NewConfig#overlayConfig.name, NewConfig ]),
   {noreply, {encryption, NewConfig#overlayConfig{ symmetric_key = erlsha2:sha256( NewConfig#overlayConfig.symmetric_key ) }}};
 
+handle_info(_Info, LoopData) ->
+  {noreply, LoopData}.
+
 %% @doc Encrypt Msg and deliver to a caller.
-handle_info({ encrypt, MsgType, Msg, CallerPid, ReceivingMember = #digestMember{} }, { encryption, Config })
-  when is_atom(MsgType) andalso is_pid(CallerPid) ->
+handle_call({ encrypt, Msg }, From, { encryption, Config }) ->
   IV = crypto:next_iv( aes_cbc, Msg ),
   Encrypted = crypto:block_encrypt( aes_cbc256, Config#overlayConfig.symmetric_key, IV, <<IV/binary, (?AES_PAD( Msg ))/binary>> ),
-  CallerPid ! { message_encrypted, { ok,
-                                     MsgType,
-                                     Encrypted,
-                                     ReceivingMember } },
+  gen_server:reply( From, { ok, Encrypted } ),
   {noreply, { encryption, Config }};
 
 %% @doc Decrypt Msg and deliver to a caller, forward given state.
-handle_info({ decrypt, <<IV:16/binary, Msg/binary>>, CallerPid, State }, { encryption, Config })
-  when is_pid(CallerPid) ->
+handle_call({ decrypt, <<IV:16/binary, Msg/binary>> }, From, { encryption, Config }) ->
   try
     Decrypted = crypto:block_decrypt( aes_cbc256, Config#overlayConfig.symmetric_key, IV, Msg ),
-    CallerPid ! { message_decrypted, { ok,
-                                       Decrypted,
-                                       State } }
+    gen_server:reply( From, { ok, Decrypted } )
   catch
     _Error:_Reason ->
-      CallerPid ! { message_decrypted, { error, decryption_failed } }
+      gen_server:reply( From, { error, decryption_failed } )
   end,
   {noreply, { encryption, Config }};
-
-handle_info(_Info, LoopData) ->
-  {noreply, LoopData}.
 
 handle_call(_Msg, _From, LoopData) ->
   {reply, ok, LoopData}.
