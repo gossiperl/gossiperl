@@ -1,0 +1,13 @@
+language: erlang
+
+otp_release:
+   - 17.0
+   - 17.1
+   - 17.3
+
+sudo: false
+
+script: "rebar clean get-deps compile eunit"
+
+notifications:
+  email: false
