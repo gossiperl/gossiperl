@@ -46,7 +46,7 @@ reply(<<"POST">>, Req) ->
                 { ok, _ChildSpec } ->
                   { ok, { _, RecordedConfig } } = gossiperl_configuration:for_overlay( RequestedOverlayName ),
                   gen_server:cast( gossiperl_statistics, { ensure_storage, RequestedOverlayName } ),
-                  cowboy_req:reply(200, [
+                  cowboy_req:reply(201, [
                     {<<"content-type">>, <<"application/json; charset=utf-8">>},
                     {<<"x-session-token">>, RecordedConfig#overlayConfig.internal#internalConfig.webToken}
                   ], jsx:encode( [
@@ -58,7 +58,7 @@ reply(<<"POST">>, Req) ->
                 { ok, _ChildSpec, _Info } ->
                   { ok, { _, RecordedConfig } } = gossiperl_configuration:for_overlay( RequestedOverlayName ),
                   gen_server:cast( gossiperl_statistics, { ensure_storage, RequestedOverlayName } ),
-                  cowboy_req:reply(200, [
+                  cowboy_req:reply(201, [
                     {<<"content-type">>, <<"application/json; charset=utf-8">>},
                     {<<"x-session-token">>, RecordedConfig#overlayConfig.internal#internalConfig.webToken}
                   ], jsx:encode( [
@@ -137,7 +137,7 @@ reply(<<"DELETE">>, Req) ->
                 { operation, <<"remove_overlay">> },
                 { timestamp, gossiperl_common:get_timestamp() }
               ] ),
-              cowboy_req:reply(200, [
+              cowboy_req:reply(202, [
                 {<<"content-type">>, <<"application/json; charset=utf-8">>}
               ], Response, Req);
             { error, Reason } ->
@@ -203,7 +203,7 @@ process_configuration_from_json(Request, JsonData, RequestedOverlayName, Existin
         OldConfigToMatch ->
           case gossiperl_sup:reconfigure_overlay( ExistingConfig, ConfigurationRecord ) of
             { ok, _, _ } ->
-              cowboy_req:reply(200, [
+              cowboy_req:reply(202, [
                 {<<"content-type">>, <<"application/json; charset=utf-8">>}
               ], jsx:encode( [
                 { overlay, RequestedOverlayName },

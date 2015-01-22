@@ -32,7 +32,7 @@ reply(<<"POST">>, Req) ->
     authorized ->
       { StatusCode, Result } = case gossiperl_app:configure_from_file() of
         no_file           -> { 200, <<"no_config">> };
-        ok                -> { 200, <<"reconfigured">> };
+        ok                -> { 202, <<"reconfigured">> };
         { error, Reason } -> { 500, list_to_binary(io_lib:format("error:~p", [Reason])) }
       end, 
       Response = jsx:encode( [

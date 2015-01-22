@@ -44,7 +44,17 @@ init([]) ->
 
   CowboyArguments = case application:get_env( gossiperl, rest_ssl ) of
     { ok, [ { <<"certfile">>, CertFile }, { <<"keyfile">>, KeyFile } ] } ->
-      [ {port, Port }, { certfile, CertFile }, { keyfile, KeyFile } ];
+      [ {port, Port },
+        { reuseaddr, true },
+        { certfile, binary_to_list(CertFile) },
+        { keyfile, binary_to_list(KeyFile) } ];
+    { ok, [ { <<"cacertfile">>, CACertFile }, { <<"certfile">>, CertFile }, { <<"keyfile">>, KeyFile } ] } ->
+      [ {port, Port },
+        { reuseaddr, true },
+        { cacertfile, binary_to_list(CACertFile) },
+        { certfile, binary_to_list(CertFile) },
+        { keyfile, binary_to_list(KeyFile) },
+        { verify_fun, fun (_,{bad_cert, _}, UserState) -> gossiperl_log:info("Huh?"), { valid, UserState } end } ];
     _ ->
       [ {port, Port } ]
   end,
@@ -62,6 +72,8 @@ init([]) ->
       {"/reconfigure", [], web_api_v1_reconfigure, []} %% POST
     ]}
   ]),
+
+  gossiperl_log:info("Starting WEB API with following arguments: ~p", [ CowboyArguments ]),
 
   case lists:keyfind( certfile, 1, CowboyArguments ) of
     { certfile, _ } ->

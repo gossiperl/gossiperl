@@ -111,37 +111,37 @@ test_rack_configuration() ->
 
 test_valid_configuration_from_json() ->
   % This is a valid configuration:
-  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"192.168.50.100\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = ?BIN_CONFIG_VALID,
   JsonData = jsx:decode( Configuration ),
   ?assertMatch({ ok, _ }, ?CONFIG:configuration_from_json(JsonData, ?OVERLAY)).
 
 test_invalid1_configuration_from_json() ->
   % port is not numeric:
-  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": \"6666\", \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = ?BIN_CONFIG_INVALID1,
   ParseData = jsx:decode( Configuration ),
   ?assertMatch({ error, _ }, ?CONFIG:configuration_from_json(ParseData, ?OVERLAY)).
 
 test_invalid2_configuration_from_json() ->
   % IP address in not an IP address:
-  Configuration = <<"{ \"ip\": \"no an ip address\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = ?BIN_CONFIG_INVALID2,
   ParseData = jsx:decode( Configuration ),
   ?assertMatch({ error, _ }, ?CONFIG:configuration_from_json(ParseData, ?OVERLAY)).
 
 test_invalid3_configuration_from_json() ->
   % one of the rack IPs is not an IP:
-  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"not an ip\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = ?BIN_CONFIG_INVALID3,
   ParseData = jsx:decode( Configuration ),
   ?assertMatch({ error, _ }, ?CONFIG:configuration_from_json(ParseData, ?OVERLAY)).
 
 no_seeds_for_a_rack() ->
   % made up interface name:
-  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"some_other_rack\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = ?BIN_CONFIG_MISSING_SEEDS,
   { ok, ParseConfiguration } = ?CONFIG:configuration_from_json( jsx:decode( Configuration ), ?OVERLAY ),
   ValidationResult = ?CONFIG:validate( ParseConfiguration ),
   ?assertMatch({ error, _ }, ValidationResult).
 
 configuration_with_member_name() ->
-  Configuration = <<"{ \"member_name\": \"hello_world\", \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = ?BIN_CONFIG_MEMBER_NAME,
   JsonData = jsx:decode( Configuration ),
   ParseResult = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
   ?assertMatch( { ok,_ }, ParseResult ),
@@ -150,7 +150,7 @@ configuration_with_member_name() ->
   ?assertEqual( SetupConfig#overlayConfig.member_name, <<"hello_world">> ).
 
 configuration_process() ->
-  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = ?BIN_CONFIG_VALID,
   JsonData = jsx:decode( Configuration ),
   ParseResult = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
   ?assertMatch( { ok,_ }, ParseResult ),
@@ -188,7 +188,7 @@ test_serialize_deserialize() ->
 
 % Add / remove overlay basics:
 test_add_remove_overlay() ->
-  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = ?BIN_CONFIG_VALID,
   JsonData = jsx:decode( Configuration ),
   ParseResult = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
   { ok, ParseConfiguration } = ParseResult,
@@ -202,7 +202,7 @@ test_add_remove_overlay() ->
 
 % Encryption
 test_encrypt_decrypt() ->
-  Configuration = <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>,
+  Configuration = ?BIN_CONFIG_VALID,
   JsonData = jsx:decode( Configuration ),
   { ok, ParseConfiguration } = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
   
@@ -226,7 +226,7 @@ test_encrypt_decrypt() ->
   ?assertMatch( { ok, _ }, EncryptionResult ),
   { ok, Encrypted }         = EncryptionResult,
   DecryptionResult          = gen_server:call( ?ENCRYPTION(LoadedConfiguration), { decrypt, Encrypted } ),
-  { ok, Decrypted }         = DecryptionResult,
+  { ok, _ }                 = DecryptionResult,
   DeserializeResult = gen_server:call( gossiperl_serialization, { deserialize, SerializedData } ),
   ?assertMatch( { ok, _, _ }, DeserializeResult ),
   { ok, PayloadType, Deserialized } = DeserializeResult,

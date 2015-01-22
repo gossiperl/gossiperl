@@ -40,13 +40,13 @@ reply(<<"POST">>, Req) ->
                 Member = #digestMember{ member_ip = RecipientIp, member_port = RecipientPort },
                 % TODO: this isn't right, we should avoid changin to atom:
                 deliver_digest( list_to_atom(binary_to_list(DigestType)), DigestData, OverlayConfig, Member ),
-                cowboy_req:reply(200, [
+                cowboy_req:reply(202, [
                   {<<"content-type">>, <<"application/json; charset=utf-8">>}
                 ], jsx:encode( [{ status, <<"ok">> }] ), Req);
               [ { DigestType, DigestData } ] ->
                 % TODO: this isn't right, we should avoid changin to atom:
                 deliver_digest( list_to_atom(binary_to_list(DigestType)), DigestData, OverlayConfig ),
-                cowboy_req:reply(200, [
+                cowboy_req:reply(202, [
                   {<<"content-type">>, <<"application/json; charset=utf-8">>}
                 ], jsx:encode( [{ status, <<"ok">> }] ), Req);
               _ ->
