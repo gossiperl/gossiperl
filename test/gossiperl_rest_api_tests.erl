@@ -179,7 +179,7 @@ test_reconfigure_overlay() ->
                                               ?HACKNEY_OPTIONS ),
   { ok, StatusCode, _, _ } = HackneyPostRequestResult,
   ?assertEqual( 202, StatusCode ),
-  
+  timer:sleep(1000),
   HackneyRequestResult = hackney:request( get,
                                           <<?GOSSIPERL_HOST/binary, "/configuration/", ?OVERLAY_NAME/binary>>,
                                           get_session_header(OverlayToken) ++ [ { <<"content-type">>, <<"application/json">> } ],
@@ -197,7 +197,7 @@ test_reconfigure_overlay() ->
   { <<"rack_name">>, RackName }   = MaybeRackName,
   MaybeRacks                      = lists:keyfind( <<"racks">>, 1, ConfigData ),
   ?assertMatch( { <<"racks">>, [ { RackName, [ ?SEED_IP_RECONFIG ] } ] }, MaybeRacks ),
-  timer:sleep(2000).
+  timer:sleep(1500).
 
 test_membership_get() ->
   OverlayToken = ets:lookup_element( ?ETS_NAME, overlay_token, 2 ),
