@@ -1,5 +1,7 @@
 # Gossip middleware
 
+![Build status](https://travis-ci.org/gossiperl/gossiperl.svg?branch=master)
+
 Gossiperl is a language agnostic, Apache Thrift based gossip middleware and message bus.
 
 The purpose of gossiperl is to provide a gossip as a service for applications running on a host.

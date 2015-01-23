@@ -5,7 +5,7 @@ otp_release:
 
 sudo: false
 
-script: "rebar clean get-deps compile eunit"
+script: "rebar compile eunit"
 
 notifications:
   email: false
