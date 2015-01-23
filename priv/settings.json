@@ -1,0 +1,28 @@
+{
+  "rest_ssl": {
+    "cacertfile": "ssl/gossiperl_ca.crt",
+    "certfile": "ssl/gossiperl.cert.pem",
+    "keyfile": "ssl/gossiperl.key.pem"
+  },
+  "superuser": {
+    "username": "superuser",
+    "password": "superpass"
+  },
+  "rest_user": {
+    "username": "gossiperl_username",
+    "password": "gossiperl_password"
+  },
+  "rest_num_acceptors": 100,
+  "rest_port": 8080,
+  "statictics_backend": {
+    "enabled": false,
+    "influxdb": {
+      "host": "127.0.0.1",
+      "port": 8086,
+      "username": "root",
+      "password": "root",
+      "protocol": "http",
+      "timeout": 5000
+    }
+  }
+}

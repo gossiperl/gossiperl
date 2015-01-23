@@ -46,20 +46,29 @@ stop(_State) ->
 %% @doc Configures gossiperl from configuration file, if file exists.
 -spec configure_from_file() -> ok.
 configure_from_file() ->
-  case filelib:is_regular( ?CONFIG_PATH ) of
+  case filelib:is_regular( ?ETC_CONFIG_PATH ) of
     false ->
-      no_file;
+      PrivDir = gossiperl_common:privdir(),
+      case filelib:is_regular( filename:join(PrivDir, binary_to_list(?PRIV_CONFIG_PATH)) ) of
+        false ->
+          no_file;
+        true ->
+          configure_with_existing_file( filename:join(PrivDir, binary_to_list(?PRIV_CONFIG_PATH)) )
+      end;
     true ->
-      {ok, Data} = file:read_file( ?CONFIG_PATH ),
-      JsonData = gossiperl_common:binary_join( binary:split(Data, [<<"\n">>], [global]), <<"">> ),
-      try
-        ParsedConfig = jsx:decode( JsonData ),
-        gossiperl_log:debug("Configuring from file:"),
-        [ configure_property( list_to_atom(binary_to_list( Key )), Value ) || { Key, Value } <- ParsedConfig ],
-        ok
-      catch
-        _Error:Reason -> { error, Reason }
-      end
+      configure_with_existing_file(?ETC_CONFIG_PATH)
+  end.
+
+configure_with_existing_file( Filepath ) ->
+  {ok, Data} = file:read_file( Filepath ),
+  JsonData = gossiperl_common:binary_join( binary:split(Data, [<<"\n">>], [global]), <<"">> ),
+  try
+    ParsedConfig = jsx:decode( JsonData ),
+    gossiperl_log:debug("Configuring from file:"),
+    [ configure_property( list_to_atom(binary_to_list( Key )), Value ) || { Key, Value } <- ParsedConfig ],
+    ok
+  catch
+    _Error:Reason -> { error, Reason }
   end.
 
 %% @doc Configures single environment property.

@@ -43,8 +43,8 @@ init([Config]) ->
       {error, Reason}
   end.
 
-terminate(_Reason, {messaging, Config}) ->
-  gossiperl_log:info("[~p] Termination requested. Closing sockets.", [ Config#overlayConfig.name ]),
+terminate(Reason, {messaging, Config}) ->
+  gossiperl_log:info("[~p] Termination requested (reason ~p). Closing sockets.", [ Config#overlayConfig.name, Reason ]),
   gen_udp:close(Config#overlayConfig.internal#internalConfig.socket).
 
 handle_cast(stop, LoopData) ->
@@ -52,7 +52,7 @@ handle_cast(stop, LoopData) ->
 
 handle_info({ update_config, NewConfig = #overlayConfig{} }, {messaging, _Config}) ->
   gossiperl_log:notice("[~p] Reconfiguring messaging component with ~p.", [ NewConfig#overlayConfig.name, NewConfig ]),
-  inset:setopts(NewConfig#overlayConfig.internal#internalConfig.socket, ?INET_OPTS(NewConfig) ),
+  inet:setopts(NewConfig#overlayConfig.internal#internalConfig.socket, ?INET_OPTS(NewConfig) ),
   {noreply, {messaging, NewConfig}};
 
 %% SENDING

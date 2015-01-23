@@ -81,7 +81,8 @@
 -type handle_reachable_error_type() :: no_member | no_secret_match | delivery_expired.
 -type digest_ack_response() :: no_subscription_delivery | subscriptions_delivered.
 
--define(CONFIG_PATH, <<"/etc/gossiperl/settings.json">>).
+-define(ETC_CONFIG_PATH, <<"/etc/gossiperl/settings.json">>).
+-define(PRIV_CONFIG_PATH, <<"settings.json">>).
 -define(LOCAL_ADDRESS_IP, <<"127.0.0.1">>).
 -define(REACHABLE, <<"reachable">>).
 -define(UNREACHABLE, <<"unreachable">>).

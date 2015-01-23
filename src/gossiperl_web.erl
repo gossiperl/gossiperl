@@ -46,15 +46,14 @@ init([]) ->
     { ok, [ { <<"certfile">>, CertFile }, { <<"keyfile">>, KeyFile } ] } ->
       [ {port, Port },
         { reuseaddr, true },
-        { certfile, binary_to_list(CertFile) },
-        { keyfile, binary_to_list(KeyFile) } ];
+        { certfile, gossiperl_common:locate_file( binary_to_list(CertFile) ) },
+        { keyfile, gossiperl_common:locate_file( binary_to_list(KeyFile) ) } ];
     { ok, [ { <<"cacertfile">>, CACertFile }, { <<"certfile">>, CertFile }, { <<"keyfile">>, KeyFile } ] } ->
       [ {port, Port },
         { reuseaddr, true },
-        { cacertfile, binary_to_list(CACertFile) },
-        { certfile, binary_to_list(CertFile) },
-        { keyfile, binary_to_list(KeyFile) },
-        { verify_fun, fun (_,{bad_cert, _}, UserState) -> gossiperl_log:info("Huh?"), { valid, UserState } end } ];
+        { cacertfile, gossiperl_common:locate_file( binary_to_list(CACertFile) ) },
+        { certfile, gossiperl_common:locate_file( binary_to_list(CertFile) ) },
+        { keyfile, gossiperl_common:locate_file( binary_to_list(KeyFile) ) } ];
     _ ->
       [ {port, Port } ]
   end,
