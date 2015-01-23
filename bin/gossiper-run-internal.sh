@@ -7,9 +7,7 @@
 
 SCRIPT_DIRECTORY=$(dirname "${BASH_SOURCE[0]}")
 cd $SCRIPT_DIRECTORY/../
-./rebar clean
-./rebar get-deps
-./rebar compile
+rebar clean get-deps compile
 erlc -o ./ebin/
 erl \
   -pa ./deps/*/ebin \
