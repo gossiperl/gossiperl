@@ -1,5 +1,9 @@
 #!/bin/bash
+
+SCRIPT_DIRECTORY=$(dirname "${BASH_SOURCE[0]}")
+
 ERL_V=17.4
+REBAR_V=2.0
 
 apt-get -y update
 apt-get install -y libncurses5-dev libssl-dev curl git-core build-essential
@@ -34,15 +38,39 @@ else
   echo "Erlang/OTP ${ERL_V} already installed"
 fi
 
-chmod a+x /vagrant/bin/*.sh
-chmod a+x /vagrant/bin/rebar/*.sh
-chmod a+x /vagrant/bin/utils/*.sh
-
-if [ -d /vagrant/clients/bin ]; then
-  chmod a+x /vagrant/clients/bin/*.sh
-fi
-
 chmod -R 0777 /erlang # let it be executed by anybody
+. /erlang/.erlang_${ERL_V}/activate
+
+# Install rebar
+if [ ! -f /etc/gossiperl/rebar ]; then
+  echo "Installing Rebar $REBAR_V"
+  # cleanup first:
+  rm -Rf ~/.rebar
+  rm -Rf /usr/bin/rebar
+  # we will store rebar in:
+  mkdir -p ~/.rebar/rebar-src
+  cd ~/.rebar/rebar-src
+  # clone and ensure branch:
+  git clone https://github.com/basho/rebar.git .
+  git fetch origin
+  git checkout -b $REBAR_V origin/$REBAR_V
+  /bin/sleep 5
+  # bootstrap - make sure Erlang is available:
+  ./bootstrap || exit 100
+  echo -e "Rebar bootstrapped."
+  while [ -z "$(ls -la . | grep ' rebar$')" ]; do
+    echo " -> rebar build not found yet"
+    /bin/sleep 1
+  done
+  echo -e "Rebar build found"
+  cp rebar ../rebar-$REBAR_V
+  cd ..
+  ln -s rebar-$REBAR_V ./rebar-current
+  ln -s $(pwd)/rebar-current /usr/bin/rebar
+  echo $(date) >> /etc/gossiperl/rebar
+else
+  echo "Rebar $REBAR_V installed."
+fi
 
 # Install Ruby:
 
