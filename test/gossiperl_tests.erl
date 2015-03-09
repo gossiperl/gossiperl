@@ -14,9 +14,12 @@ gossiperl_test_() ->
     fun test_configuration_property_from_json/0,
     fun test_rack_configuration/0,
     fun test_valid_configuration_from_json/0,
+    fun test_valid_multicast_configuration_from_json/0,
+    fun test_valid_multicast_no_racks_configuration_from_json/0,
     fun test_invalid1_configuration_from_json/0,
     fun test_invalid2_configuration_from_json/0,
     fun test_invalid3_configuration_from_json/0,
+    fun test_invalid_multicast_configuration_from_json_1/0,
     fun no_seeds_for_a_rack/0,
     fun configuration_with_member_name/0,
     fun configuration_process/0,
@@ -115,6 +118,21 @@ test_valid_configuration_from_json() ->
   JsonData = jsx:decode( Configuration ),
   ?assertMatch({ ok, _ }, ?CONFIG:configuration_from_json(JsonData, ?OVERLAY)).
 
+test_valid_multicast_configuration_from_json() ->
+  % This is a valid configuration:
+  Configuration = ?BIN_CONFIG_VALID_MULTICAST,
+  JsonData = jsx:decode( Configuration ),
+  ?assertMatch({ ok, _ }, ?CONFIG:configuration_from_json(JsonData, ?OVERLAY)).
+
+test_valid_multicast_no_racks_configuration_from_json() ->
+  % This is a valid configuration:
+  Configuration = ?BIN_CONFIG_VALID_MULTICAST_NO_RACKS,
+  JsonData = jsx:decode( Configuration ),
+  ParseResult = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
+  ?assertMatch({ ok, _ }, ParseResult),
+  { ok, ParsedConfiguration } = ParseResult,
+  ?assertMatch({ ok, _ }, ?CONFIG:validate_racks(ParsedConfiguration)).
+
 test_invalid1_configuration_from_json() ->
   % port is not numeric:
   Configuration = ?BIN_CONFIG_INVALID1,
@@ -133,11 +151,17 @@ test_invalid3_configuration_from_json() ->
   ParseData = jsx:decode( Configuration ),
   ?assertMatch({ error, _ }, ?CONFIG:configuration_from_json(ParseData, ?OVERLAY)).
 
+test_invalid_multicast_configuration_from_json_1() ->
+  % one of the rack IPs is not an IP:
+  Configuration = ?BIN_CONFIG_INVALID_MULTICAST1,
+  ParseData = jsx:decode( Configuration ),
+  ?assertMatch({ error, _ }, ?CONFIG:configuration_from_json(ParseData, ?OVERLAY)).
+
 no_seeds_for_a_rack() ->
   % made up interface name:
   Configuration = ?BIN_CONFIG_MISSING_SEEDS,
   { ok, ParseConfiguration } = ?CONFIG:configuration_from_json( jsx:decode( Configuration ), ?OVERLAY ),
-  ValidationResult = ?CONFIG:validate( ParseConfiguration ),
+  ValidationResult = ?CONFIG:validate_racks( ParseConfiguration ),
   ?assertMatch({ error, _ }, ValidationResult).
 
 configuration_with_member_name() ->

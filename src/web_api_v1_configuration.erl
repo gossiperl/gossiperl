@@ -37,6 +37,12 @@ reply(<<"GET">>, Req) ->
             { member_name, OverlayConfig#overlayConfig.member_name },
             { ip, list_to_binary( inet:ntoa(OverlayConfig#overlayConfig.ip) ) },
             { port, OverlayConfig#overlayConfig.port },
+            { multicast, case OverlayConfig#overlayConfig.multicast of
+                           undefined -> <<"off">>;
+                             _       -> [ { ip, list_to_binary( inet:ntoa(OverlayConfig#overlayConfig.multicast#multicastConfig.ip) ) },
+                                          { ttl, OverlayConfig#overlayConfig.multicast#multicastConfig.ttl },
+                                          { local_iface_address, list_to_binary( inet:ntoa(OverlayConfig#overlayConfig.multicast#multicastConfig.local_iface_address) ) } ]
+                         end },
             { ip_hint, case OverlayConfig#overlayConfig.ip_hint of
                             {_,_,_,_} ->
                               list_to_binary( inet:ntoa( OverlayConfig#overlayConfig.ip_hint ) );

@@ -35,7 +35,7 @@ start_link(Config) ->
 stop() -> gen_server:cast(?MODULE, stop).
 
 init([Config]) ->
-  case gen_udp:open(Config#overlayConfig.port, [binary, {ip, Config#overlayConfig.ip}] ++ ?INET_OPTS(Config) ) of
+  case gen_udp:open(Config#overlayConfig.port, [binary, {ip, Config#overlayConfig.ip}] ++ ?INET_OPTS(Config) ++ ?MULTICAST_OPTS(Config) ) of
     {ok, OverlaySocket} ->
       {ok, {messaging, gossiperl_configuration:overlay_socket( OverlaySocket, Config ) }};
     {error, Reason} ->
@@ -52,7 +52,7 @@ handle_cast(stop, LoopData) ->
 
 handle_info({ update_config, NewConfig = #overlayConfig{} }, {messaging, _Config}) ->
   gossiperl_log:notice("[~p] Reconfiguring messaging component with ~p.", [ NewConfig#overlayConfig.name, NewConfig ]),
-  inet:setopts(NewConfig#overlayConfig.internal#internalConfig.socket, ?INET_OPTS(NewConfig) ),
+  inet:setopts(NewConfig#overlayConfig.internal#internalConfig.socket, ?INET_OPTS(NewConfig) ++ ?MULTICAST_OPTS(NewConfig) ),
   {noreply, {messaging, NewConfig}};
 
 %% SENDING

@@ -46,7 +46,7 @@ init([]) ->
 %% @doc Add an overlay and start it.
 -spec add_overlay( atom(), gossiperl_config() ) -> supervisor:startchild_ret() | supervisor:startchild_err() | { error, { atom(), any() } }.
 add_overlay(OverlayName, Config = #overlayConfig{}) when is_atom(OverlayName) ->
-  case gossiperl_configuration:validate( Config ) of
+  case gossiperl_configuration:validate_racks( Config ) of
     { ok, Config } ->
       supervisor:start_child(?MODULE, ?GOSSIPER_OVERLAY( OverlayName, Config ));
     { error, Reason } ->
@@ -56,7 +56,7 @@ add_overlay(OverlayName, Config = #overlayConfig{}) when is_atom(OverlayName) ->
 %% @doc Reconfigure running overlay with new configuration record.
 -spec reconfigure_overlay( gossiperl_config(), gossiperl_config() ) -> { ok, gossiperl_config(), gossiperl_config() } | { error, atom() }.
 reconfigure_overlay( OldConfig = #overlayConfig{}, NewConfig = #overlayConfig{} ) ->
-  case gossiperl_configuration:validate( NewConfig ) of
+  case gossiperl_configuration:validate_racks( NewConfig ) of
     { ok, NewConfig } ->
       PreparedConfig = gossiperl_configuration:store_config( NewConfig#overlayConfig{ internal=OldConfig#overlayConfig.internal } ),
       Pids = [ ?ENCRYPTION( PreparedConfig ), ?MEMBERSHIP( PreparedConfig ), ?MESSAGING( PreparedConfig ), ?SUBSCRIPTIONS( PreparedConfig ) ],
