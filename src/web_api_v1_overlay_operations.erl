@@ -197,8 +197,14 @@ process_configuration_from_json(Request, JsonData, RequestedOverlayName, Existin
     { error, { Code, Cause } } ->
       cowboy_req:reply(409, [], list_to_binary(io_lib:format("Configuration property problematic ~p, ~p.", [Cause, Code])), Request);
     ConfigurationRecord ->
-      NewConfigToMatch = { ConfigurationRecord#overlayConfig.member_name, ConfigurationRecord#overlayConfig.ip, ConfigurationRecord#overlayConfig.iface, ConfigurationRecord#overlayConfig.port },
-      OldConfigToMatch = { ExistingConfig#overlayConfig.member_name, ExistingConfig#overlayConfig.ip, ExistingConfig#overlayConfig.iface, ExistingConfig#overlayConfig.port },
+      NewConfigToMatch = { ConfigurationRecord#overlayConfig.member_name,
+                           ConfigurationRecord#overlayConfig.ip,
+                           ConfigurationRecord#overlayConfig.iface,
+                           ConfigurationRecord#overlayConfig.port },
+      OldConfigToMatch = { ExistingConfig#overlayConfig.member_name,
+                           ExistingConfig#overlayConfig.ip,
+                           ExistingConfig#overlayConfig.iface,
+                           ExistingConfig#overlayConfig.port },
       case NewConfigToMatch of
         OldConfigToMatch ->
           case gossiperl_sup:reconfigure_overlay( ExistingConfig, ConfigurationRecord ) of

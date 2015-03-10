@@ -190,12 +190,17 @@ handle_info({ gossip }, {membership, Config, Membership}) ->
     id = uuid:uuid_to_string(uuid:get_v4()),
     secret = Config#overlayConfig.secret },
   
-  case gossip_reachable( remote, digest, Digest, Config, dict:to_list(Membership) ) of
+  case Config#overlayConfig.multicast of
     undefined ->
-      gossip_seed( digest, Digest, Config ),
-      gossip_unreachable( remote, digest, Digest, Config, dict:to_list(Membership) );
+      case gossip_reachable( remote, digest, Digest, Config, dict:to_list(Membership) ) of
+        undefined ->
+          gossip_seed( digest, Digest, Config ),
+          gossip_unreachable( remote, digest, Digest, Config, dict:to_list(Membership) );
+        _ ->
+          gossip_unreachable( remote, digest, Digest, Config, dict:to_list(Membership) )
+      end;
     _ ->
-      gossip_unreachable( remote, digest, Digest, Config, dict:to_list(Membership) )
+      ?MESSAGING( Config ) ! { send_multicast_digest, digest, Digest }
   end,
   
   {noreply, {membership, Config, Membership}}.

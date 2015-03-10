@@ -72,6 +72,21 @@ handle_info({ send_digest, Member = #digestMember{}, DigestType, Digest }, {mess
     MaybeEncrypted ),
   {noreply, {messaging, Config}};
 
+%% @doc Sends the digest over a multicast address.
+handle_info({ send_multicast_digest, DigestType, Digest }, {messaging, Config}) when is_atom(DigestType) ->
+  { ok, SerializedDigest, _ } = gen_server:call( gossiperl_serialization, { serialize, DigestType, Digest }, 5000 ),
+  { ok, MaybeEncrypted }      = gen_server:call( ?ENCRYPTION( Config ), { encrypt, SerializedDigest } ),
+  gen_server:cast( gossiperl_statistics, { record,
+                                           list_to_binary(atom_to_list(Config#overlayConfig.name)),
+                                           { data, DigestType, out },
+                                           byte_size(MaybeEncrypted) } ),
+  gen_udp:send(
+    Config#overlayConfig.internal#internalConfig.socket,
+    Config#overlayConfig.multicast#multicastConfig.ip,
+    Config#overlayConfig.port,
+    MaybeEncrypted ),
+  {noreply, {messaging, Config}};
+
 %% RECEIVING
 
 %% @doc gen_udp callback, initializes receiving process by passing the message for decryption.
@@ -98,7 +113,6 @@ handle_info({ message_deserialized, { ok, DecodedPayloadType, DecodedPayload }, 
                                            list_to_binary(atom_to_list(Config#overlayConfig.name)),
                                            { data, DecodedPayloadType, in },
                                            byte_size(OriginalMessage) } ),
-
   self() ! { message, DecodedPayloadType, DecodedPayload, { ClientIp, ClientPort } },
   {noreply, {messaging, Config}};
 
@@ -124,15 +138,22 @@ handle_info({ message_deserialized, {forwardable, ForwardedMessageType, DigestEn
   {noreply, {messaging, Config}};
 
 %% @doc Process incoming digest.
-handle_info({ message, digest, DecodedPayload, { ClientIp, _ClientPort } }, { messaging, Config }) ->
+handle_info({ message, digest, DecodedPayload = #digest{ name = FromMemberName }, { ClientIp, _ClientPort } }, { messaging, Config = #overlayConfig{ member_name = CurrentMemberName } })
+  when CurrentMemberName =/= FromMemberName ->
   % TODO: DecodedPayload#digest.heartbeat - verify that the message is no way to old...
   Member = #digestMember{ member_name = DecodedPayload#digest.name, member_ip = list_to_binary( inet:ntoa( ClientIp ) ),
                           member_port = DecodedPayload#digest.port, member_heartbeat = DecodedPayload#digest.heartbeat },
   gen_server:cast( ?MEMBERSHIP( Config ), { reachable, Member, DecodedPayload#digest.id, DecodedPayload#digest.secret } ),
   {noreply, {messaging, Config}};
 
+%% @doc Process incoming digest.
+handle_info({ message, digest, #digest{ name = FromMemberName }, _ }, { messaging, Config = #overlayConfig{ member_name = CurrentMemberName } })
+  when CurrentMemberName =:= FromMemberName -> % message from self, ignore
+  {noreply, {messaging, Config}};
+
 %% @doc Process incoming digestAck.
-handle_info({ message, digestAck, DecodedPayload, { ClientIp, _ClientPort } }, { messaging, Config }) ->
+handle_info({ message, digestAck, DecodedPayload = #digestAck{ name = FromMemberName }, { ClientIp, _ClientPort } }, { messaging, Config = #overlayConfig{ member_name = CurrentMemberName } })
+  when CurrentMemberName =/= FromMemberName ->
   [ gen_server:cast( ?MEMBERSHIP(Config), { reachable_remote,
                                             case Member#digestMember.member_ip of
                                               <<"0.0.0.0">> ->
@@ -142,6 +163,10 @@ handle_info({ message, digestAck, DecodedPayload, { ClientIp, _ClientPort } }, {
                                             end } ) || Member <- lists:filter( fun( Member ) ->
                                                                                  Member#digestMember.member_name =/= Config#overlayConfig.member_name
                                                                                end, DecodedPayload#digestAck.membership) ],
+  {noreply, {messaging, Config}};
+
+handle_info({ message, digestAck, #digestAck{ name = FromMemberName }, _ }, { messaging, Config = #overlayConfig{ member_name = CurrentMemberName } })
+  when CurrentMemberName =:= FromMemberName -> % message from self, ignore
   {noreply, {messaging, Config}};
 
 %% @doc Process incoming digestSubscriptions.
