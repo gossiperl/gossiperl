@@ -41,7 +41,11 @@ reply(<<"GET">>, Req) ->
                            undefined -> <<"off">>;
                              _       -> [ { ip, list_to_binary( inet:ntoa(OverlayConfig#overlayConfig.multicast#multicastConfig.ip) ) },
                                           { ttl, OverlayConfig#overlayConfig.multicast#multicastConfig.ttl },
-                                          { local_iface_address, list_to_binary( inet:ntoa(OverlayConfig#overlayConfig.multicast#multicastConfig.local_iface_address) ) } ]
+                                          { local_iface_address, list_to_binary( inet:ntoa(OverlayConfig#overlayConfig.multicast#multicastConfig.local_iface_address) ) },
+                                          { local_port, case OverlayConfig#overlayConfig.multicast#multicastConfig.local_port of
+                                                          0 -> (OverlayConfig#overlayConfig.port+1)
+                                                          _ -> OverlayConfig#overlayConfig.multicast#multicastConfig.local_port
+                                                        end } ]
                          end },
             { ip_hint, case OverlayConfig#overlayConfig.ip_hint of
                             {_,_,_,_} ->

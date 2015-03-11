@@ -22,7 +22,8 @@
 -record(multicastConfig, {
           ip :: tuple(),
           local_iface_address :: tuple(),
-          ttl :: integer() }).
+          ttl :: integer(),
+          local_port :: integer() }).
 
 -record(overlayConfig, {
           ip :: tuple(),

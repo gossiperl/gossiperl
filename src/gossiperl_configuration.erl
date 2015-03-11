@@ -364,6 +364,12 @@ maybe_multicast_setting( { <<"ttl">>, Value } ) ->
     TtlValue          -> { ttl, TtlValue }
   end;
 
+maybe_multicast_setting( { <<"local_port">>, Value } ) ->
+  case as_integer(Value) of
+    { error, Reason } -> { error, Reason };
+    LocalPortValue    -> { local_port, LocalPortValue }
+  end;
+
 maybe_multicast_setting( AnyOther ) ->
   { error, { unsupported_multicast_setting, AnyOther } }.
 
@@ -373,7 +379,8 @@ to_multicast_settings(MulticastSettings) ->
   Config = #multicastConfig{
     ip  = proplists:get_value( ip, MulticastSettings, undefined ),
     ttl = proplists:get_value( ttl, MulticastSettings, ?DEFAULT_MULTICAST_TTL ),
-    local_iface_address = proplists:get_value( local_iface_address, MulticastSettings, ?DEFAULT_MULTICAST_LOCAL_IF_ADDR ) },
+    local_iface_address = proplists:get_value( local_iface_address, MulticastSettings, ?DEFAULT_MULTICAST_LOCAL_IF_ADDR ),
+    local_port = proplists:get_value( local_port, MulticastSettings, 0 ) },
   case Config#multicastConfig.ip of
     undefined -> { error, { multicast_address, required } };
     _         -> Config
