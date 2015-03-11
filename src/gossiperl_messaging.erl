@@ -75,9 +75,20 @@ terminate(Reason, {messaging, Config = #overlayConfig{ multicast = _, name = Ove
 handle_cast(stop, LoopData) ->
   {noreply, LoopData}.
 
-handle_info({ update_config, NewConfig = #overlayConfig{} }, {messaging, _Config}) ->
-  gossiperl_log:notice("[~p] Reconfiguring messaging component with ~p.", [ NewConfig#overlayConfig.name, NewConfig ]),
-  inet:setopts(NewConfig#overlayConfig.internal#internalConfig.socket, ?INET_OPTS(NewConfig) ++ ?MULTICAST_OPTS(NewConfig) ),
+handle_info({ update_config, NewConfig = #overlayConfig{ multicast = undefined,
+                                                         name = OverlayName,
+                                                         internal = #internalConfig{ socket = S } } }, {messaging, _Config}) ->
+  gossiperl_log:notice("[~p] Reconfiguring messaging component with ~p.", [ OverlayName, NewConfig ]),
+  inet:setopts(S, ?INET_OPTS(NewConfig) ++ ?MULTICAST_OPTS(NewConfig) ),
+  {noreply, {messaging, NewConfig}};
+
+handle_info({ update_config, NewConfig = #overlayConfig{ multicast = _,
+                                                         name = OverlayName,
+                                                         internal = #internalConfig{ socket = S1,
+                                                                                     local_socket = S2 } } }, {messaging, _Config}) ->
+  gossiperl_log:notice("[~p] Reconfiguring messaging component with ~p.", [ OverlayName, NewConfig ]),
+  inet:setopts(S1, ?INET_OPTS(NewConfig) ++ ?MULTICAST_OPTS(NewConfig) ),
+  inet:setopts(S2, ?INET_OPTS(NewConfig) ),
   {noreply, {messaging, NewConfig}};
 
 %% SENDING
