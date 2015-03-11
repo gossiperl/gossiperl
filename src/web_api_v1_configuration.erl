@@ -43,7 +43,7 @@ reply(<<"GET">>, Req) ->
                                           { ttl, OverlayConfig#overlayConfig.multicast#multicastConfig.ttl },
                                           { local_iface_address, list_to_binary( inet:ntoa(OverlayConfig#overlayConfig.multicast#multicastConfig.local_iface_address) ) },
                                           { local_port, case OverlayConfig#overlayConfig.multicast#multicastConfig.local_port of
-                                                          0 -> (OverlayConfig#overlayConfig.port+1)
+                                                          0 -> (OverlayConfig#overlayConfig.port+1);
                                                           _ -> OverlayConfig#overlayConfig.multicast#multicastConfig.local_port
                                                         end } ]
                          end },
