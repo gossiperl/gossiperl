@@ -34,19 +34,43 @@ start_link(Config) ->
 
 stop() -> gen_server:cast(?MODULE, stop).
 
-init([Config]) ->
-  case gen_udp:open(Config#overlayConfig.port, [binary, {ip, Config#overlayConfig.ip}] ++ ?INET_OPTS(Config) ++ ?MULTICAST_OPTS(Config) ) of
+init([Config = #overlayConfig{ multicast = undefined, ip = IpAddress, port = Port, name = OverlayName }]) ->
+  case gen_udp:open(Port, [binary, {ip, IpAddress}] ++ ?INET_OPTS(Config) ++ ?MULTICAST_OPTS(Config) ) of
     {ok, OverlaySocket} ->
-      
       {ok, {messaging, gossiperl_configuration:overlay_socket( OverlaySocket, Config ) }};
     {error, Reason} ->
-      gossiperl_log:err("[~p] Error while starting overlay: ~p", [Config#overlayConfig.name, Reason]),
+      gossiperl_log:err("[~p] Error while starting overlay: ~p", [OverlayName, Reason]),
       {error, Reason}
-  end.
+  end;
 
-terminate(Reason, {messaging, Config}) ->
-  gossiperl_log:info("[~p] Termination requested (reason ~p). Closing sockets.", [ Config#overlayConfig.name, Reason ]),
-  gen_udp:close(Config#overlayConfig.internal#internalConfig.socket).
+init([Config = #overlayConfig{ multicast = #multicastConfig{ local_port = LocalPort }, ip = IpAddress, port = Port, name = OverlayName }]) ->
+  case gen_udp:open(Port, [binary, {ip, IpAddress}] ++ ?INET_OPTS(Config) ++ ?MULTICAST_OPTS(Config) ) of
+    {ok, OverlaySocket} ->
+      LocalPortToUse = case LocalPort of
+                         0 -> (Port + 1)
+                         _ -> LocalPort
+                       end,
+      case gen_udp:open(LocalPortToUse, [binary, {ip, {127,0,0,1}}] ++ ?INET_OPTS(Config)) of
+        { ok, LocalOverlaySocket } ->
+          {ok, {messaging, gossiperl_configuration:overlay_socket( OverlaySocket, LocalOverlaySocket, Config ) }};
+        { error, Reason } ->
+          gossiperl_log:err("[~p] Error while starting local socket for a multicast overlay: ~p", [OverlayName, Reason]),
+          gen_udp:close( OverlaySocket ),
+          {error, Reason}
+      end;
+    {error, Reason} ->
+      gossiperl_log:err("[~p] Error while starting overlay: ~p", [OverlayName, Reason]),
+      {error, Reason}
+  end;
+
+terminate(Reason, {messaging, Config = #overlayConfig{ multicast = undefined, name = OverlayName, internal = #internalConfig{ socket = S } }}) ->
+  gossiperl_log:info("[~p] Termination requested (reason ~p). Closing overlay socket.", [ OverlayName, Reason ]),
+  gen_udp:close(S);
+
+terminate(Reason, {messaging, Config = #overlayConfig{ multicast = _, name = OverlayName,
+                                                       internal = #internalConfig{ socket = S1, local_socket = S2 } }}) ->
+  gossiperl_log:info("[~p] Termination requested (reason ~p). Closing overlay and local sockets.", [ OverlayName, Reason ]),
+  gen_udp:close(S1), gen_udp:close(S2).
 
 handle_cast(stop, LoopData) ->
   {noreply, LoopData}.

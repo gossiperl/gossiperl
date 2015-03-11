@@ -24,6 +24,7 @@
   setup/1,
   for_overlay/1,
   overlay_socket/2,
+  overlay_socket/3,
   remove_configuration_for/1,
   list_overlays/0,
   configuration_from_json/2,
@@ -90,12 +91,13 @@ overlay_socket(Socket, Config) when is_port(Socket) ->
       socket = Socket } },
   store_config( Config2 ).
 
-%% @doc Stores local UDP socket of an overlay for multicast overlays.
--spec overlay_local_socket( port(), gossiperl_config() ) -> gossiperl_config().
-overlay_local_socket(Socket, Config) when is_port(Socket) ->
+%% @doc Stores UDP socket of an overlay and local communication.
+-spec overlay_socket( port(), port(), gossiperl_config() ) -> gossiperl_config().
+overlay_socket(Socket, LocalSocket, Config) when is_port(Socket) andalso is_port(LocalSocket) andalso Socket =/= LocalSocket ->
   Config2 = Config#overlayConfig{
     internal = Config#overlayConfig.internal#internalConfig{
-      local_socket = Socket } },
+      socket       = Socket,
+      local_socket = LocalSocket } },
   store_config( Config2 ).
 
 %% @doc Loads the seeds of rack for a configuration.
