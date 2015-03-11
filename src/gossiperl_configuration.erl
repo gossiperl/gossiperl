@@ -82,12 +82,20 @@ names(Config = #overlayConfig{}) ->
     }
   }.
 
-%% @doc Stores UDP socket of an overlay for the configuration.
+%% @doc Stores UDP socket of an overlay.
 -spec overlay_socket( port(), gossiperl_config() ) -> gossiperl_config().
 overlay_socket(Socket, Config) when is_port(Socket) ->
   Config2 = Config#overlayConfig{
     internal = Config#overlayConfig.internal#internalConfig{
       socket = Socket } },
+  store_config( Config2 ).
+
+%% @doc Stores local UDP socket of an overlay for multicast overlays.
+-spec overlay_local_socket( port(), gossiperl_config() ) -> gossiperl_config().
+overlay_local_socket(Socket, Config) when is_port(Socket) ->
+  Config2 = Config#overlayConfig{
+    internal = Config#overlayConfig.internal#internalConfig{
+      local_socket = Socket } },
   store_config( Config2 ).
 
 %% @doc Loads the seeds of rack for a configuration.

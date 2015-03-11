@@ -16,6 +16,7 @@
           nameList :: list(),
           names=#gossiperNames{},
           socket :: pid(),
+          local_socket :: pid(),
           knownIps :: list(),
           webToken :: binary() }).
 

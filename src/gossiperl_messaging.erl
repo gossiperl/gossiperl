@@ -37,6 +37,7 @@ stop() -> gen_server:cast(?MODULE, stop).
 init([Config]) ->
   case gen_udp:open(Config#overlayConfig.port, [binary, {ip, Config#overlayConfig.ip}] ++ ?INET_OPTS(Config) ++ ?MULTICAST_OPTS(Config) ) of
     {ok, OverlaySocket} ->
+      
       {ok, {messaging, gossiperl_configuration:overlay_socket( OverlaySocket, Config ) }};
     {error, Reason} ->
       gossiperl_log:err("[~p] Error while starting overlay: ~p", [Config#overlayConfig.name, Reason]),
