@@ -96,37 +96,45 @@ handle_info({ update_config, NewConfig = #overlayConfig{ multicast = _,
 
 %% SENDING
 
-%% @doc Sends the digest to a member.
-handle_info({ send_digest, Member = #digestMember{}, DigestType, Digest }, {messaging, Config}) when is_atom(DigestType) ->
-  { ok, SerializedDigest, _ } = gen_server:call( gossiperl_serialization, { serialize, DigestType, Digest }, 5000 ),
-  { ok, MaybeEncrypted }      = gen_server:call( ?ENCRYPTION( Config ), { encrypt, SerializedDigest } ),
-  gen_server:cast( gossiperl_statistics, { record,
-                                           list_to_binary(atom_to_list(Config#overlayConfig.name)),
-                                           { data, DigestType, out },
-                                           byte_size(MaybeEncrypted) } ),
-  gen_udp:send(
-    Config#overlayConfig.internal#internalConfig.socket,
-    gossiperl_common:parse_binary_ip( Member#digestMember.member_ip ),
-    Member#digestMember.member_port,
-    MaybeEncrypted ),
+%% @doc Sends the digest to a member in a non multicast overlay.
+handle_info({ send_digest, #digestMember{ member_ip = MemberIp, member_port = MemberPort }, DigestType, Digest },
+            { messaging, Config = #overlayConfig{ name = OverlayName,
+                                                  multicast = undefined,
+                                                  internal = #internalConfig{ socket = S } } }) when is_atom(DigestType) ->
+  ok = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
+                                  gossiperl_common:parse_binary_ip( MemberIp ), MemberPort, S ),
+  {noreply, {messaging, Config}};
+
+%% @doc Sends the digest to a member in a multicast overlay.
+handle_info({ send_digest, #digestMember{}, DigestType, Digest },
+            { messaging, Config = #overlayConfig{ name = OverlayName,
+                                                  port = OverlayPort,
+                                                  multicast = #multicastConfig{ ip = MulticastIp },
+                                                  internal = #internalConfig{ socket = S } } }) when is_atom(DigestType) ->
+  ok = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
+                                  MulticastIp, OverlayPort, S ),
+  {noreply, {messaging, Config}};
+
+%% @doc Sends the digest to a local member when in multicast overlay.
+handle_info({ send_digest, #digestMember{ member_ip = <<"127.0.0.1">>, member_port = MemberPort }, DigestType, Digest },
+            { messaging, Config = #overlayConfig{ name = OverlayName,
+                                                  multicast = #multicastConfig{},
+                                                  internal = #internalConfig{ local_socket = S } } }) when is_atom(DigestType) ->
+  ok = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
+                                  {127,0,0,1}, MemberPort, S ),
   {noreply, {messaging, Config}};
 
 %% @doc Sends the digest over a multicast address.
-handle_info({ send_multicast_digest, DigestType, Digest }, {messaging, Config}) when is_atom(DigestType) ->
-  { ok, SerializedDigest, _ } = gen_server:call( gossiperl_serialization, { serialize, DigestType, Digest }, 5000 ),
-  { ok, MaybeEncrypted }      = gen_server:call( ?ENCRYPTION( Config ), { encrypt, SerializedDigest } ),
-  gen_server:cast( gossiperl_statistics, { record,
-                                           list_to_binary(atom_to_list(Config#overlayConfig.name)),
-                                           { data, DigestType, out },
-                                           byte_size(MaybeEncrypted) } ),
-  gen_udp:send(
-    Config#overlayConfig.internal#internalConfig.socket,
-    Config#overlayConfig.multicast#multicastConfig.ip,
-    Config#overlayConfig.port,
-    MaybeEncrypted ),
+handle_info({ send_multicast_digest, DigestType, Digest },
+            { messaging, Config = #overlayConfig{ name = OverlayName,
+                                                  port = OverlayPort,
+                                                  internal = #internalConfig{ socket = S },
+                                                  multicast = #multicastConfig{ ip = MulticastIp } } }) when is_atom(DigestType) ->
+  ok = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
+                                  MulticastIp, OverlayPort, S ),
   {noreply, {messaging, Config}};
 
-%% RECEIVING
+%%% RECEIVING
 
 %% @doc gen_udp callback, initializes receiving process by passing the message for decryption.
 handle_info({udp, _ClientSocket, ClientIp, ClientPort, Msg}, {messaging, Config}) ->
@@ -176,6 +184,8 @@ handle_info({ message_deserialized, {forwardable, ForwardedMessageType, DigestEn
 
   {noreply, {messaging, Config}};
 
+%%% DIGEST
+
 %% @doc Process incoming digest.
 handle_info({ message, digest, DecodedPayload = #digest{ name = FromMemberName }, { ClientIp, _ClientPort } }, { messaging, Config = #overlayConfig{ member_name = CurrentMemberName } })
   when CurrentMemberName =/= FromMemberName ->
@@ -189,6 +199,8 @@ handle_info({ message, digest, DecodedPayload = #digest{ name = FromMemberName }
 handle_info({ message, digest, #digest{ name = FromMemberName }, _ }, { messaging, Config = #overlayConfig{ member_name = CurrentMemberName } })
   when CurrentMemberName =:= FromMemberName -> % message from self, ignore
   {noreply, {messaging, Config}};
+
+%%% DIGEST_ACK
 
 %% @doc Process incoming digestAck.
 handle_info({ message, digestAck, DecodedPayload = #digestAck{ name = FromMemberName }, { ClientIp, _ClientPort } }, { messaging, Config = #overlayConfig{ member_name = CurrentMemberName } })
@@ -208,10 +220,14 @@ handle_info({ message, digestAck, #digestAck{ name = FromMemberName }, _ }, { me
   when CurrentMemberName =:= FromMemberName -> % message from self, ignore
   {noreply, {messaging, Config}};
 
+%%% DIGEST_SUBSCRIPTIONS
+
 %% @doc Process incoming digestSubscriptions.
 handle_info({ message, digestSubscriptions, DecodedPayload, { _ClientIp, _ClientPort } }, { messaging, Config }) ->
   ?SUBSCRIPTIONS( Config ) ! { process_given_list, DecodedPayload#digestSubscriptions.subscriptions },
   {noreply, {messaging, Config}};
+
+%%% DIGEST_EXIT
 
 %% @doc Process incoming digestExit.
 handle_info({ message, digestExit, DecodedPayload, { _ClientIp, _ClientPort } }, { messaging, Config }) ->
@@ -222,6 +238,8 @@ handle_info({ message, digestExit, DecodedPayload, { _ClientIp, _ClientPort } },
       gossiperl_log:warn("[~p] Ignoring digestExit. Secret problematic. Reason: ~p.", [ Config#overlayConfig.name, Reason ])
   end,
   {noreply, {messaging, Config}};
+
+%%% DIGEST_SUBSCRIBE
 
 %% @doc Process incoming digestSubscribe.
 handle_info({ message, digestSubscribe, DecodedPayload, { {127,0,0,1}, _ClientPort } }, { messaging, Config }) ->
@@ -245,6 +263,8 @@ handle_info({ message, digestSubscribe, _DecodedPayload, { _ClientIp, _ClientPor
   % digestSubscribe coming from outside of 127.0.0.1, ignoring
   {noreply, {messaging, Config}};
 
+%%% DIGEST_UNSUBSCRIBE
+
 %% @doc Process incoming digestUnsubscribe.
 handle_info({ message, digestUnsubscribe, DecodedPayload, { {127,0,0,1}, _ClientPort } }, { messaging, Config }) ->
   case gen_server:call( ?MEMBERSHIP(Config), { is_member_secret_valid, DecodedPayload#digestUnsubscribe.name, DecodedPayload#digestUnsubscribe.secret } ) of
@@ -267,6 +287,8 @@ handle_info({ message, digestUnsubscribe, _DecodedPayload, { _ClientIp, _ClientP
   % digestUnsubscribe coming from outside of 127.0.0.1, ignoring
   {noreply, {messaging, Config}};
 
+%%% DIGEST_FORWARDED_ACK
+
 %% @doc Process incoming digestForwardedAck.
 handle_info({ message, digestForwardedAck, DecodedPayload, _Client }, { messaging, Config }) ->
   case gen_server:call( ?MEMBERSHIP(Config), { is_member_secret_valid, DecodedPayload#digestForwardedAck.name, DecodedPayload#digestForwardedAck.secret } ) of
@@ -277,7 +299,7 @@ handle_info({ message, digestForwardedAck, DecodedPayload, _Client }, { messagin
   end,
   {noreply, {messaging, Config}};
 
-%% ERROR HANDLING
+%%% ERROR HANDLING
 
 %% @doc Handle message deserialization error.
 handle_info({ message_deserialized, {error, Reason}, _ }, {messaging, Config}) ->
@@ -295,3 +317,14 @@ handle_call( stop, _From, { messaging, Config }) ->
 
 code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
+
+%% @doc Delivers digest to the destination.
+-spec deliver_digest_via_socket( atom(), any(), atom(), pid(), ip4_address(), integer(), port() ) -> ok | { error, term() }.
+deliver_digest_via_socket( DigestType, Digest, OverlayName, Encryption, Ip, Port, Socket ) ->
+  { ok, SerializedDigest, _ } = gen_server:call( gossiperl_serialization, { serialize, DigestType, Digest } ),
+  { ok, MaybeEncrypted }      = gen_server:call( Encryption, { encrypt, SerializedDigest } ),
+  gen_server:cast( gossiperl_statistics, { record,
+                                           list_to_binary(atom_to_list(OverlayName)),
+                                           { data, DigestType, out },
+                                           byte_size(MaybeEncrypted) } ),
+  gen_udp:send( Socket, Ip, Port, MaybeEncrypted ).
