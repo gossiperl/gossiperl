@@ -4,23 +4,49 @@ SCRIPT_DIRECTORY=$(dirname "${BASH_SOURCE[0]}")
 
 ERL_V=17.4
 REBAR_V=2.0
+OPENSSL_V=1.0.2
 
-apt-get -y update
-apt-get install -y libncurses5-dev libssl-dev curl git-core build-essential
+ERLANG_DIR=/etc/gossiperl/erlang
 
-mkdir -p /etc/gossiperl
+mkdir -p $ERLANG_DIR
 
-# Install Erlang:
+if [ ! -f $ERLANG_DIR/apt ]; then
+  echo "Changing APT settings..."
+  sudo rm -Rf /etc/apt/sources.list
+  echo "deb mirror://mirrors.ubuntu.com/mirrors.txt precise main restricted universe multiverse" >> /etc/apt/sources.list
+  echo "deb mirror://mirrors.ubuntu.com/mirrors.txt precise-updates main restricted universe multiverse" >> /etc/apt/sources.list
+  echo "deb mirror://mirrors.ubuntu.com/mirrors.txt precise-backports main restricted universe multiverse" >> /etc/apt/sources.list
+  echo "deb mirror://mirrors.ubuntu.com/mirrors.txt precise-security main restricted universe multiverse" >> /etc/apt/sources.list
+  echo "APT settings changed."
+  apt-get -y update
+  apt-get install -y libncurses5-dev libssl-dev curl git-core build-essential
+  echo $(date) >> /etc/gossiperl/apt
+else
+  echo "APT settings already applied"
+fi
 
-curl https://www.openssl.org/source/openssl-1.0.1g.tar.gz | tar xz && cd openssl-1.0.1g && sudo ./config && sudo make && sudo make install
-sudo ln -sf /usr/local/ssl/bin/openssl `which openssl`
-cd ..
+if [ ! -f /etc/gossiperl/openssl ]; then
+  echo "Installing OpenSSL $OPENSSL_V"
+  curl https://www.openssl.org/source/openssl-$OPENSSL_V.tar.gz | tar xz && cd openssl-$OPENSSL_V && sudo ./config && sudo make && sudo make install
+  sudo ln -sf /usr/local/ssl/bin/openssl `which openssl`
+  cd ..
+  echo $(date) >> /etc/gossiperl/openssl
+else
+  echo "OpenSSL $OPENSSL_V already installed"
+fi
 
-mkdir -p /erlang
+if [ ! -f /etc/gossiperl/multicast ]; then
+  echo "Enabling multicast"
+  ifconfig eth1 multicast
+  route add -net 224.0.0.0 netmask 224.0.0.0 eth1
+  echo $(date) >> /etc/gossiperl/multicast
+else
+  echo "Multicast already enabled"
+fi
 
-if [ ! -f /erlang/kerl ]; then
+if [ ! -f $ERLANG_DIR/kerl ]; then
   echo "Installing Kerl"
-  cd /erlang
+  cd $ERLANG_DIR
   curl -O https://raw.githubusercontent.com/yrashk/kerl/master/kerl
   chmod a+x kerl
   chmod -R 0777 kerl
@@ -28,18 +54,18 @@ else
   echo "Kerl already installed"
 fi
 
-if [ ! -d /erlang/.erlang_${ERL_V} ]; then
+if [ ! -d $ERLANG_DIR/.erlang_${ERL_V} ]; then
   echo "Installing Erlang/OTP $ERL_V"
-  mkdir -p /erlang/.erlang_${ERL_V}
-  /erlang/kerl build  $ERL_V $ERL_V
-  /erlang/kerl install $ERL_V /erlang/.erlang_${ERL_V}
-  echo ". /erlang/.erlang_${ERL_V}/activate" >> /etc/bash.bashrc
+  mkdir -p $ERLANG_DIR/.erlang_${ERL_V}
+  $ERLANG_DIR/kerl build  $ERL_V $ERL_V
+  $ERLANG_DIR/kerl install $ERL_V $ERLANG_DIR/.erlang_${ERL_V}
+  echo ". $ERLANG_DIR/.erlang_${ERL_V}/activate" >> /etc/bash.bashrc
 else
   echo "Erlang/OTP ${ERL_V} already installed"
 fi
 
-chmod -R 0777 /erlang # let it be executed by anybody
-. /erlang/.erlang_${ERL_V}/activate
+chmod -R 0777 $ERLANG_DIR # let it be executed by anybody
+. $ERLANG_DIR/.erlang_${ERL_V}/activate
 
 # Install rebar
 if [ ! -f /etc/gossiperl/rebar ]; then
