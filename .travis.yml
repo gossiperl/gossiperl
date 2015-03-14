@@ -3,9 +3,10 @@ language: erlang
 otp_release:
   - 17.0
 
-sudo: false
+sudo: true
 
-script: "rebar compile eunit"
+before_script: "sudo ifconfig venet0 multicast && sudo route add -net 224.0.0.0 netmask 224.0.0.0 venet0"
+script: "rebar compile && rebar eunit skip_deps=true"
 
 notifications:
   email: false

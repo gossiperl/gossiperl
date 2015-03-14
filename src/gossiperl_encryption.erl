@@ -66,6 +66,10 @@ handle_call({ decrypt, <<IV:16/binary, Msg/binary>> }, From, { encryption, Confi
   end,
   {noreply, { encryption, Config }};
 
+handle_call({ decrypt, _ }, From, { encryption, Config }) ->
+  gen_server:reply( From, { error, decryption_failed } ),
+  {noreply, { encryption, Config }};
+
 handle_call(_Msg, _From, LoopData) ->
   {reply, ok, LoopData}.
 

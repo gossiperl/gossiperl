@@ -16,8 +16,15 @@
           nameList :: list(),
           names=#gossiperNames{},
           socket :: pid(),
+          local_socket :: pid(),
           knownIps :: list(),
           webToken :: binary() }).
+
+-record(multicastConfig, {
+          ip :: tuple(),
+          local_iface_address :: tuple(),
+          ttl :: integer(),
+          local_port :: integer() }).
 
 -record(overlayConfig, {
           ip :: tuple(),
@@ -42,7 +49,8 @@
           name :: atom(),
           symmetric_key :: binary(),
           secret = <<"default-overlay-secret">> :: binary(),
-          internal = #internalConfig{} :: #internalConfig{} }).
+          internal = #internalConfig{} :: #internalConfig{},
+          multicast = undefined :: #multicastConfig{} }).
 
 -record(statsEntryDigestType, {
           key :: tuple(),
@@ -80,6 +88,7 @@
 -type handle_reachable_success_type() :: added | returned | updated.
 -type handle_reachable_error_type() :: no_member | no_secret_match | delivery_expired.
 -type digest_ack_response() :: no_subscription_delivery | subscriptions_delivered.
+-type multicast_setting() :: ip | ttl | local_iface_address.
 
 -define(ETC_CONFIG_PATH, <<"/etc/gossiperl/settings.json">>).
 -define(PRIV_CONFIG_PATH, <<"settings.json">>).
@@ -109,9 +118,19 @@
 
 -define(ETS_REDELIVERIES(Config), Config#overlayConfig.internal#internalConfig.names#gossiperNames.ets_redeliveries).
 -define(ETS_SUBSCRIPTIONS(Config), Config#overlayConfig.internal#internalConfig.names#gossiperNames.ets_subscriptions).
+-define(MULTICAST_OPTS(Config), case Config#overlayConfig.multicast of
+                                  undefined -> [];
+                                  _         -> [ {multicast_ttl, Config#overlayConfig.multicast#multicastConfig.ttl},
+                                                 {multicast_loop, true},
+                                                 {broadcast, true},
+                                                 {add_membership, {Config#overlayConfig.multicast#multicastConfig.ip, Config#overlayConfig.multicast#multicastConfig.local_iface_address}} ]
+                                end ).
 -define(INET_OPTS(Config), [ {recbuf, Config#overlayConfig.incoming_data_buffer_size},
                              {sndbuf, Config#overlayConfig.outgoing_data_buffer_size},
-                             {read_packets, Config#overlayConfig.read_packet_count} ]).
+                             {read_packets, Config#overlayConfig.read_packet_count} ] ).
 -define(AES_PAD(Bin), <<Bin/binary, 0:(( 32 - ( byte_size(Bin) rem 32 ) ) *8 )>>).
+
+-define(DEFAULT_MULTICAST_TTL, 4).
+-define(DEFAULT_MULTICAST_LOCAL_IF_ADDR, {0,0,0,0}).
 
 -endif.

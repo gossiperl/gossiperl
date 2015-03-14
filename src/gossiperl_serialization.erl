@@ -60,7 +60,7 @@ handle_call({ serialize, DigestType, Digest }, From, { serialization, OutThriftP
   when is_atom( DigestType ) ->
   case DigestType of
     digestEnvelope ->
-      gen_server:reply( From, { ok, Digest } );
+      gen_server:reply( From, { ok, Digest, digestEnvelope } );
     _ ->
       gen_server:reply( From, serialize( DigestType,
                                          Digest,

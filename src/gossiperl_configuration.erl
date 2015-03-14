@@ -24,12 +24,13 @@
   setup/1,
   for_overlay/1,
   overlay_socket/2,
+  overlay_socket/3,
   remove_configuration_for/1,
   list_overlays/0,
   configuration_from_json/2,
   configuration_property_from_json/3,
   store_config/1,
-  validate/1]).
+  validate_racks/1]).
 
 -include("gossiperl.hrl").
 
@@ -82,12 +83,21 @@ names(Config = #overlayConfig{}) ->
     }
   }.
 
-%% @doc Stores UDP socket of an overlay for the configuration.
+%% @doc Stores UDP socket of an overlay.
 -spec overlay_socket( port(), gossiperl_config() ) -> gossiperl_config().
 overlay_socket(Socket, Config) when is_port(Socket) ->
   Config2 = Config#overlayConfig{
     internal = Config#overlayConfig.internal#internalConfig{
       socket = Socket } },
+  store_config( Config2 ).
+
+%% @doc Stores UDP socket of an overlay and local communication.
+-spec overlay_socket( port(), port(), gossiperl_config() ) -> gossiperl_config().
+overlay_socket(Socket, LocalSocket, Config) when is_port(Socket) andalso is_port(LocalSocket) andalso Socket =/= LocalSocket ->
+  Config2 = Config#overlayConfig{
+    internal = Config#overlayConfig.internal#internalConfig{
+      socket       = Socket,
+      local_socket = LocalSocket } },
   store_config( Config2 ).
 
 %% @doc Loads the seeds of rack for a configuration.
@@ -145,11 +155,20 @@ configuration_from_json( JsonData, OverlayName ) when is_atom(OverlayName) ->
         configuration_property_from_json( FieldName, FieldValue, Record )
     end
   end, #overlayConfig{}, JsonData),
+
   case Configuration of
     { error, Any } ->
       { error, Any };
     _ ->
-      { ok, Configuration#overlayConfig{ name = OverlayName } }
+      { ok, Configuration#overlayConfig{ name = OverlayName,
+                                         % if multicast, use multicast ip as overlay ip,
+                                         % this covers the REST configuration nuisances
+                                         ip   = case Configuration#overlayConfig.multicast of
+                                                  undefined ->
+                                                    Configuration#overlayConfig.ip;
+                                                  _ ->
+                                                    Configuration#overlayConfig.multicast#multicastConfig.ip
+                                                end } }
   end.
 
 -spec configuration_property_from_json( binary(), any(), gossiperl_config() ) -> gossiperl_config() |  { error, { atom(), any() } }.
@@ -200,6 +219,16 @@ configuration_property_from_json(<<"racks">>, FieldValue, ConfigurationRecord) -
   case lists:keyfind(error, 1, Racks) of
     { error, Reason } -> { error, Reason };
     false             -> ConfigurationRecord#overlayConfig{ racks = Racks }
+  end;
+
+configuration_property_from_json(<<"multicast">>, FieldValue, ConfigurationRecord) ->
+  MulticastSettings = [ maybe_multicast_setting( { MulticastSettingName, MulticastSettingValue } ) || { MulticastSettingName, MulticastSettingValue } <- FieldValue ],
+  case lists:keyfind(error, 1, MulticastSettings) of
+    { error, Reason } -> { error, Reason };
+    false             -> case proplists:get_value( ip, MulticastSettings, not_found ) of
+                           not_found -> { error, { missing_value, multicast_ip } };
+                           _         -> ConfigurationRecord#overlayConfig{ multicast = to_multicast_settings( MulticastSettings ) }
+                         end
   end;
 
 configuration_property_from_json(<<"quarantine_after">>, FieldValue, ConfigurationRecord) ->
@@ -272,14 +301,17 @@ configuration_property_from_json(FieldName, _, _) ->
   { error, { badarg, FieldName } }.
 
 %% @doc Run additional validation checks of the configuration.
--spec validate( gossiperl_config() ) -> { ok, gossiperl_config() } | { error, no_rack_seeds }.
-validate(Configuration) ->
+-spec validate_racks( gossiperl_config() ) -> { ok, gossiperl_config() } | { error, no_rack_seeds }.
+validate_racks(Configuration = #overlayConfig{ multicast = undefined }) ->
   %% Check that `racks` contains `seeds` for for `rack_name`:
   RackName = Configuration#overlayConfig.rack_name,
   case lists:keyfind( RackName, 1, Configuration#overlayConfig.racks ) of
     { RackName, _ } -> { ok, Configuration };
     false           -> { error, no_rack_seeds }
-  end.
+  end;
+
+validate_racks(Configuration = #overlayConfig{ multicast = _ }) ->
+  { ok, Configuration }.
 
 %% @doc Load list op inet IPs from the rack settings.
 -spec maybe_rack_data({ rack_name(), [ binary() ] }) -> { rack_name(), [ ip4_address() ] } | { error, { atom(), any() } }.
@@ -292,7 +324,6 @@ maybe_rack_data({ RackName, SeedList }) when is_binary(RackName) andalso is_list
 
 maybe_rack_data(Value) ->
   { error, { rack_settings_invalid, Value } }.
-
 
 %% @doc Get data as binary or error.
 -spec as_binary( any() ) -> binary() | { error, { not_binary, any() } }.
@@ -320,3 +351,48 @@ as_integer(Value) ->
     true  -> Value;
     false -> { error, { not_integer, Value } }
   end.
+
+%%% Multicast settings:
+
+%% @doc Get single multicast setting.
+-spec maybe_multicast_setting( { binary(), binary() | integer() } ) -> { atom(), any() } | { error, { atom(), any() } }.
+maybe_multicast_setting( { <<"ip">>, Address } ) ->
+  case as_ip(Address) of
+    { error, Reason } -> { error, Reason };
+    IpAddress         -> { ip, IpAddress }
+  end;
+
+maybe_multicast_setting( { <<"local_iface_address">>, Address } ) ->
+  case as_ip(Address) of
+    { error, Reason } -> { error, Reason };
+    IpAddress         -> { local_iface_address, IpAddress }
+  end;
+
+maybe_multicast_setting( { <<"ttl">>, Value } ) ->
+  case as_integer(Value) of
+    { error, Reason } -> { error, Reason };
+    TtlValue          -> { ttl, TtlValue }
+  end;
+
+maybe_multicast_setting( { <<"local_port">>, Value } ) ->
+  case as_integer(Value) of
+    { error, Reason } -> { error, Reason };
+    LocalPortValue    -> { local_port, LocalPortValue }
+  end;
+
+maybe_multicast_setting( AnyOther ) ->
+  { error, { unsupported_multicast_setting, AnyOther } }.
+
+%% @doc Convert proplist of multicast settings into a record.
+-spec to_multicast_settings([ { multicast_setting(), any() } ]) -> #multicastConfig{} | { error, { atom(), any() } }.
+to_multicast_settings(MulticastSettings) ->
+  Config = #multicastConfig{
+    ip  = proplists:get_value( ip, MulticastSettings, undefined ),
+    ttl = proplists:get_value( ttl, MulticastSettings, ?DEFAULT_MULTICAST_TTL ),
+    local_iface_address = proplists:get_value( local_iface_address, MulticastSettings, ?DEFAULT_MULTICAST_LOCAL_IF_ADDR ),
+    local_port = proplists:get_value( local_port, MulticastSettings, 0 ) },
+  case Config#multicastConfig.ip of
+    undefined -> { error, { multicast_address, required } };
+    _         -> Config
+  end.
+
