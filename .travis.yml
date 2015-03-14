@@ -5,7 +5,7 @@ otp_release:
 
 sudo: true
 
-before_script: "ifconfig && sudo ifconfig venet0 multicast && sudo route add -net 224.0.0.0 netmask 224.0.0.0 venet0"
+before_script: "sudo ifconfig venet0 multicast && sudo route add -net 224.0.0.0 netmask 224.0.0.0 venet0"
 script: "rebar compile && rebar eunit skip_deps=true"
 
 notifications:
