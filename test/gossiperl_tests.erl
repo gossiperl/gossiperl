@@ -25,6 +25,7 @@ gossiperl_test_() ->
     fun configuration_process/0,
     fun test_serialize_deserialize/0,
     fun test_add_remove_overlay/0,
+    fun test_add_remove_multicast_overlay/0,
     fun test_encrypt_decrypt/0
     ] }.
 
@@ -221,6 +222,22 @@ test_add_remove_overlay() ->
   LoadConfiguratonResult = begin timer:sleep(1000), ?CONFIG:for_overlay( ?OVERLAY ) end,
   ?assertMatch( { ok, { _, _ } }, LoadConfiguratonResult ),
   { ok, { _, LoadedConfiguration } } = LoadConfiguratonResult,
+  ?assertEqual( true, gossiperl_sup:remove_overlay( ?OVERLAY, LoadedConfiguration ) ),
+  ?assertEqual( [], gossiperl_sup:list_overlays() ).
+
+% Add / remove multicast overlay basics:
+test_add_remove_multicast_overlay() ->
+  Configuration = ?BIN_CONFIG_VALID_MULTICAST,
+  JsonData = jsx:decode( Configuration ),
+  ParseResult = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
+  { ok, ParseConfiguration } = ParseResult,
+  ?assertMatch( { ok, _ }, gossiperl_sup:add_overlay( ?OVERLAY, ParseConfiguration ) ),
+  ?assertEqual( [ list_to_binary(atom_to_list(?OVERLAY)) ], gossiperl_sup:list_overlays() ),
+  LoadConfiguratonResult = begin timer:sleep(1000), ?CONFIG:for_overlay( ?OVERLAY ) end,
+  ?assertMatch( { ok, { _, _ } }, LoadConfiguratonResult ),
+  { ok, { _, LoadedConfiguration } } = LoadConfiguratonResult,
+  ?assertEqual( true, is_port( LoadedConfiguration#overlayConfig.internal#internalConfig.socket ) ),
+  ?assertEqual( true, is_port( LoadedConfiguration#overlayConfig.internal#internalConfig.local_socket ) ),
   ?assertEqual( true, gossiperl_sup:remove_overlay( ?OVERLAY, LoadedConfiguration ) ),
   ?assertEqual( [], gossiperl_sup:list_overlays() ).
 

@@ -26,7 +26,7 @@ https://github.com/gossiperl/gossiperl/wiki
 
 ## Unit tests
 
-    ./rebar clean get-deps compile eunit
+    rebar clean get-deps compile && rebar eunit skip_deps=true
 
 ## Author
 
