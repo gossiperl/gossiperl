@@ -263,7 +263,7 @@ handle_info({ message, digestSubscribe, DecodedPayload, { {127,0,0,1}, _ClientPo
   {noreply, {messaging, Config}};
 
 handle_info({ message, digestSubscribe, _DecodedPayload, { _ClientIp, _ClientPort } }, { messaging, Config }) ->
-  % digestSubscribe coming from outside of 127.0.0.1, ignoring
+  % digestSubscribe coming from outside of localhost, ignoring
   {noreply, {messaging, Config}};
 
 %%% DIGEST_UNSUBSCRIBE
@@ -287,7 +287,7 @@ handle_info({ message, digestUnsubscribe, DecodedPayload, { {127,0,0,1}, _Client
   {noreply, {messaging, Config}};
 
 handle_info({ message, digestUnsubscribe, _DecodedPayload, { _ClientIp, _ClientPort } }, { messaging, Config }) ->
-  % digestUnsubscribe coming from outside of 127.0.0.1, ignoring
+  % digestUnsubscribe coming from outside of localhost, ignoring
   {noreply, {messaging, Config}};
 
 %%% DIGEST_FORWARDED_ACK

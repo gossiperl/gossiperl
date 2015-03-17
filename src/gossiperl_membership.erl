@@ -65,7 +65,8 @@ handle_cast({ reachable, Member=#digestMember{ member_name=MemberName, member_ip
   end;
 
 handle_cast({ reachable, Member=#digestMember{ member_name=MemberName, member_ip=MemberIp, member_port=MemberPort }, DigestId, Secret },
-            { membership, Config=#overlayConfig{ name=OverlayName }, Membership }) when MemberIp =/= <<"127.0.0.1">> ->
+            { membership, Config=#overlayConfig{ name=OverlayName }, Membership })
+  when MemberIp =/= <<"127.0.0.1">> andalso MemberIp =/= <<"::1">> ->
   case Config#overlayConfig.secret of
     Secret ->
       case dict:is_key(MemberName, Membership) of
