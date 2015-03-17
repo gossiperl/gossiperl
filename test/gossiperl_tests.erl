@@ -7,7 +7,7 @@
 gossiperl_test_() ->
   {setup, fun start/0, fun stop/1, [
     fun test_get_iface_ip/0,
-    fun test_get_all_ipv4_addrs/0,
+    fun test_get_all_ip_addrs/0,
     fun test_get_timestamp/0,
     fun test_parse_binary_ip/0,
     fun test_binary_join/0,
@@ -59,8 +59,8 @@ test_get_iface_ip() ->
   ?assertMatch({ error, no_iface }, ?COMMON:get_iface_ip( NotInterface )),
   ?assertMatch({ ok, { _,_,_,_ } }, ?COMMON:get_iface_ip( BinIf )).
 
-test_get_all_ipv4_addrs() ->
-  ?assertMatch([ _ | _ ], ?COMMON:get_all_ipv4_addrs()).
+test_get_all_ip_addrs() ->
+  ?assertMatch([ _ | _ ], ?COMMON:get_all_ip_addrs()).
 
 test_get_timestamp() ->
   ?assertEqual( ?COMMON:get_timestamp( {1421,450191,9061} ), 1421450191 ).
