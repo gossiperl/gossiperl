@@ -29,7 +29,8 @@
   binary_join/2,
   locate_file/1,
   ip_to_binary/1,
-  privdir/0]).
+  privdir/0,
+  bits_to_upper/1]).
 
 -include("gossiperl.hrl").
 
@@ -140,3 +141,10 @@ privdir() ->
       filename:join(AppPath, "priv");
     Dir -> Dir
   end.
+
+%% @doc Convert binary to uppercase.
+-spec bits_to_upper( binary() ) -> binary().
+bits_to_upper(<<X,Rest/bits>>) ->
+  <<(string:to_upper(X)), (bits_to_upper(Rest))/bits>>;
+bits_to_upper(_) ->
+  <<>>.
