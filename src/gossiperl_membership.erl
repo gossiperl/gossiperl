@@ -268,13 +268,13 @@ gossip_reachable(Visibility, DigestType, Digest, Config = #overlayConfig{}, Memb
   end.
 
 %% @doc Gossip digest to a random seed.
--spec gossip_seed( atom(), term(), gossiperl_config() ) -> ip4_address() | undefined.
+-spec gossip_seed( atom(), term(), gossiperl_config() ) -> inet:ip_address() | undefined.
 gossip_seed(DigestType, Digest, Config = #overlayConfig{}) when is_atom(DigestType) ->
   case random_seed(Config) of
     undefined ->
       undefined;
     SeedIp ->
-      ?MESSAGING( Config ) ! { send_digest, #digestMember{ member_ip=list_to_binary(inet:ntoa(SeedIp)), member_port=Config#overlayConfig.port }, DigestType, Digest },
+      ?MESSAGING( Config ) ! { send_digest, #digestMember{ member_ip=gossiperl_common:ip_to_binary(SeedIp), member_port=Config#overlayConfig.port }, DigestType, Digest },
       SeedIp
   end.
 
@@ -286,7 +286,7 @@ gossip_seed(DigestType, Digest, Config = #overlayConfig{}) when is_atom(DigestTy
 self_as_member( Config = #overlayConfig{} ) ->
   #digestMember{
     member_name      = Config#overlayConfig.member_name,
-    member_ip        = list_to_binary(inet:ntoa(Config#overlayConfig.ip)),
+    member_ip        = gossiperl_common:ip_to_binary(Config#overlayConfig.ip),
     member_port      = Config#overlayConfig.port,
     member_heartbeat = gossiperl_common:get_timestamp() }.
 
@@ -308,12 +308,12 @@ random_seed(Config = #overlayConfig{}) ->
   case SeedIps of [] -> undefined; _ -> lists:nth( random:uniform( length( SeedIps ) ), SeedIps ) end.
 
 %% @doc Is member a seed?
--spec is_seed( binary(), [ ip4_address() ] ) -> boolean().
+-spec is_seed( binary(), [ inet:ip_address() ] ) -> boolean().
 is_seed(MemberIp, Seeds) when is_binary(MemberIp) andalso is_list(Seeds) ->
   lists:member( gossiperl_common:parse_binary_ip( MemberIp ), Seeds ).
 
 %% @doc Substract known IP addresses from the list of IP addresses. Used for seed establishing.
--spec remove_known_ips( [ ip4_address() ], [ ip4_address() ] ) -> [ ip4_address() ].
+-spec remove_known_ips( [ inet:ip_address() ], [ inet:ip_address() ] ) -> [ inet:ip_address() ].
 remove_known_ips( ListOfIps, KnownIps )
   when is_list(ListOfIps) andalso is_list(KnownIps) ->
   ListOfIps -- KnownIps.

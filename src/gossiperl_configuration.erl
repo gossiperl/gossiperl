@@ -314,7 +314,7 @@ validate_racks(Configuration = #overlayConfig{ multicast = _ }) ->
   { ok, Configuration }.
 
 %% @doc Load list op inet IPs from the rack settings.
--spec maybe_rack_data({ rack_name(), [ binary() ] }) -> { rack_name(), [ ip4_address() ] } | { error, { atom(), any() } }.
+-spec maybe_rack_data({ rack_name(), [ binary() ] }) -> { rack_name(), [ inet:ip_address() ] } | { error, { atom(), any() } }.
 maybe_rack_data({ RackName, SeedList }) when is_binary(RackName) andalso is_list(SeedList) ->
   MaybeSeeds = [ gossiperl_common:parse_binary_ip( BinIp ) || BinIp <- SeedList ],
   case lists:keyfind(error, 1, MaybeSeeds) of
@@ -334,7 +334,7 @@ as_binary(Value) ->
   end.
 
 %% @doc Get data as inet IP address.
--spec as_ip( any() ) -> { ok, ip4_address() } | { error, { not_binary, any() } } | { error, { not_ip, any() } }.
+-spec as_ip( any() ) -> { ok, inet:ip_address() } | { error, { not_binary, any() } } | { error, { not_ip, any() } }.
 as_ip(Value) ->
   case as_binary(Value) of
     {error, {R,C_}} -> {error, {R,C_}};

@@ -78,7 +78,6 @@
 
 -type gossiperl_config() :: #overlayConfig{}.
 -type rack_name() :: binary().
--type ip4_address() :: {0..255, 0..255, 0..255, 0..255}.
 -type timestamp() :: {MegaSecs :: non_neg_integer(), Secs :: non_neg_integer(), MicroSecs :: non_neg_integer()}.
 -type delivery_reason() :: delivered | unsubscribed | max_redelivery_attempts.
 -type token_auth_error() :: no_auth | token_mismatch.

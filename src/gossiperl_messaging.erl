@@ -175,7 +175,7 @@ handle_info({ message_deserialized, {forwardable, ForwardedMessageType, DigestEn
   ?SUBSCRIPTIONS( Config ) ! { notify, ForwardedMessageType, DigestEnvelopeBinary, ClientIp, ForwardedDigestId },
   gossiperl_log:info("[~p] sending digestForwardedAck to: ~p:~p", [ Config#overlayConfig.name, ClientIp, ClientPort ]),
   self() ! {  send_digest,
-              #digestMember{ member_ip = list_to_binary(inet:ntoa(ClientIp)), member_port=ClientPort },
+              #digestMember{ member_ip = gossiperl_common:ip_to_binary(ClientIp), member_port=ClientPort },
               digestForwardedAck,
               #digestForwardedAck{
                 name = Config#overlayConfig.member_name,
@@ -190,7 +190,7 @@ handle_info({ message_deserialized, {forwardable, ForwardedMessageType, DigestEn
 handle_info({ message, digest, DecodedPayload = #digest{ name = FromMemberName }, { ClientIp, _ClientPort } }, { messaging, Config = #overlayConfig{ member_name = CurrentMemberName } })
   when CurrentMemberName =/= FromMemberName ->
   % TODO: DecodedPayload#digest.heartbeat - verify that the message is no way to old...
-  Member = #digestMember{ member_name = DecodedPayload#digest.name, member_ip = list_to_binary( inet:ntoa( ClientIp ) ),
+  Member = #digestMember{ member_name = DecodedPayload#digest.name, member_ip = gossiperl_common:ip_to_binary( ClientIp ),
                           member_port = DecodedPayload#digest.port, member_heartbeat = DecodedPayload#digest.heartbeat },
   gen_server:cast( ?MEMBERSHIP( Config ), { reachable, Member, DecodedPayload#digest.id, DecodedPayload#digest.secret } ),
   {noreply, {messaging, Config}};
@@ -208,7 +208,7 @@ handle_info({ message, digestAck, DecodedPayload = #digestAck{ name = FromMember
   [ gen_server:cast( ?MEMBERSHIP(Config), { reachable_remote,
                                             case Member#digestMember.member_ip of
                                               <<"0.0.0.0">> ->
-                                                Member#digestMember{ member_ip = list_to_binary( inet:ntoa( ClientIp ) ) };
+                                                Member#digestMember{ member_ip = gossiperl_common:ip_to_binary( ClientIp ) };
                                               _ ->
                                                 Member
                                             end } ) || Member <- lists:filter( fun( Member ) ->
@@ -319,7 +319,7 @@ code_change(_OldVsn, State, _Extra) ->
   {ok, State}.
 
 %% @doc Delivers digest to the destination.
--spec deliver_digest_via_socket( atom(), any(), atom(), pid(), ip4_address(), integer(), port() ) -> ok | { error, term() }.
+-spec deliver_digest_via_socket( atom(), any(), atom(), pid(), inet:ip_address(), integer(), port() ) -> ok | { error, term() }.
 deliver_digest_via_socket( DigestType, Digest, OverlayName, Encryption, Ip, Port, Socket ) ->
   { ok, SerializedDigest, _ } = gen_server:call( gossiperl_serialization, { serialize, DigestType, Digest } ),
   { ok, MaybeEncrypted }      = gen_server:call( Encryption, { encrypt, SerializedDigest } ),

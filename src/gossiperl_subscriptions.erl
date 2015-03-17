@@ -78,11 +78,11 @@ handle_info({notify, EventType, EventObject}, {subscriptions, Config})
   notify_local_subscribers( Config, EventType, EventObject ),
   {noreply, {subscriptions, Config}};
 
-handle_info({notify, EventType, EventObject, {Ip1,Ip2,Ip3,Ip4}, ForwardedDigestId}, {subscriptions, Config})
+handle_info({notify, EventType, EventObject, IPAddress, ForwardedDigestId}, {subscriptions, Config})
   when is_binary(EventType) andalso is_binary(EventObject)
                             andalso is_binary(ForwardedDigestId) ->
   notify_remote_subscribers(  Config, EventType, EventObject,
-                              list_to_binary( inet:ntoa( {Ip1,Ip2,Ip3,Ip4} ) ),
+                              gossiperl_common:ip_to_binary( IPAddress ),
                               ForwardedDigestId ),
   {noreply, {subscriptions, Config}};
 
