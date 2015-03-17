@@ -42,7 +42,8 @@ init([Config = #overlayConfig{}]) ->
 
 %% @doc Handle digest given by messaging.
 handle_cast({ reachable, Member=#digestMember{ member_name=MemberName, member_ip=MemberIp, member_port=MemberPort }, DigestId, Secret },
-            { membership, Config=#overlayConfig{ name=OverlayName }, Membership }) when MemberIp =:= <<"127.0.0.1">> ->
+            { membership, Config=#overlayConfig{ name=OverlayName }, Membership })
+  when MemberIp =:= <<"127.0.0.1">> orelse MemberIp =:= <<"::1">> ->
   case dict:is_key(MemberName, Membership) of
     false ->
       {ok, MemberFsmPid} = gossiperl_member_fsm:start_link( Config, MemberName, MemberIp, MemberPort, gossiperl_common:get_timestamp(), Secret ),
