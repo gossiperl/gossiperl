@@ -114,7 +114,11 @@ handle_cast({ reachable_remote, #digestMember{ member_name=MemberName, member_ip
 handle_cast({ digest_ack, Member=#digestMember{ member_ip=MemberIp }, DigestId }, {membership, Config, Membership}) ->
   AllMembers = [ self_as_member(Config) ] ++ to_digest_members(
                                                list_members( reachable,
-                                                             case MemberIp of <<"127.0.0.1">> -> local; _ -> remote end,
+                                                             case MemberIp of
+                                                               <<"127.0.0.1">> -> local;
+                                                               <<"::1">>       -> local;
+                                                               _               -> remote
+                                                             end,
                                                              dict:to_list(Membership) ) ),
   PacketDigestAck = #digestAck{
     name = Config#overlayConfig.member_name,
@@ -126,7 +130,9 @@ handle_cast({ digest_ack, Member=#digestMember{ member_ip=MemberIp }, DigestId }
   gen_server:cast(self(), { digest_subscriptions, Member, DigestId }),
   {noreply, {membership, Config, Membership}};
 
-handle_cast({ digest_subscriptions, #digestMember{ member_ip = <<"127.0.0.1">> }, _DigestId }, {membership, Config, Membership}) ->
+handle_cast({ digest_subscriptions, #digestMember{ member_ip = MemberIp }, _DigestId }, {membership, Config, Membership})
+  when MemberIp =:= <<"127.0.0.1">> orelse MemberIp =:= <<"::1">> ->
+  % not replying to a subscription digest sent from localhost
   {noreply, {membership, Config, Membership}};
 
 handle_cast({ digest_subscriptions, Member = #digestMember{ member_name = MemberName }, DigestId }, {membership, Config, Membership}) ->
