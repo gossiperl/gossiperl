@@ -48,10 +48,9 @@ reply(<<"GET">>, Req) ->
                                                         end } ]
                          end },
             { ip_hint, case OverlayConfig#overlayConfig.ip_hint of
-                            {_,_,_,_} ->
-                              gossiperl_common:ip_to_binary( OverlayConfig#overlayConfig.ip_hint );
-                            _ ->
-                              <<"undefined">>
+                            {_,_,_,_}         -> gossiperl_common:ip_to_binary( OverlayConfig#overlayConfig.ip_hint );
+                            {_,_,_,_,_,_,_,_} -> gossiperl_common:ip_to_binary( OverlayConfig#overlayConfig.ip_hint );
+                            _                 -> <<"undefined">>
                        end },
             { iface, case OverlayConfig#overlayConfig.iface of
                             undefined ->

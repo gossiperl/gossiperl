@@ -59,7 +59,7 @@ setup(Config = #overlayConfig{}) ->
         Config2#overlayConfig{
           internal = Config2#overlayConfig.internal#internalConfig{
             nameList = atom_to_list(Config2#overlayConfig.name),
-            knownIps = gossiperl_common:get_all_ipv4_addrs(),
+            knownIps = gossiperl_common:get_all_ip_addrs(),
             webToken = list_to_binary( uuid:uuid_to_string(uuid:get_v4()) )
           }
         }

@@ -23,7 +23,7 @@
 -export([get_timestamp/0, get_timestamp/1]).
 -export([
   get_iface_ip/1,
-  get_all_ipv4_addrs/0,
+  get_all_ip_addrs/0,
   parse_binary_ip/1,
   seed_random/0,
   binary_join/2,
@@ -52,7 +52,11 @@ get_iface_ip(Lookup) when is_binary( Lookup ) ->
       case lists:filter(fun({ IfaceName, _ }) -> list_to_binary( IfaceName ) =:= Lookup end, Interfaces) of
         [ { _, Options } ] ->
           Addresses = lists:filter( fun( { OptionName, Value } ) ->
-                        case { OptionName, Value } of { addr, {_,_,_,_} } -> true; _ -> false end
+                        case { OptionName, Value } of
+                          { addr, {_,_,_,_} }         -> true;
+                          { addr, {_,_,_,_,_,_,_,_} } -> true;
+                          _                           -> false
+                        end
                       end, Options ),
           case Addresses of
             [] -> { error, no_addr }; [ { addr, Ip } | _ ] -> { ok, Ip }
@@ -62,15 +66,19 @@ get_iface_ip(Lookup) when is_binary( Lookup ) ->
     _ -> { error, no_iface }
   end.
 
-%% @doc Returns a of IPv4 addresses of every interface installed on the host machine.
--spec get_all_ipv4_addrs() -> { ok, [ inet:ip_address() ] } | { error, no_iface }.
-get_all_ipv4_addrs() ->
+%% @doc Returns a list of IP addresses of every interface installed on the host machine.
+-spec get_all_ip_addrs() -> { ok, [ inet:ip_address() ] } | { error, no_iface }.
+get_all_ip_addrs() ->
   case inet:getifaddrs() of
     { ok, Interfaces } ->
       [ Ip || { addr, Ip } <- lists:flatten(
         lists:map(fun({_, Options}) ->
           lists:filter( fun({ OptName, Value }) ->
-            case { OptName, Value } of { addr, {_,_,_,_} } -> true; _ -> false end
+            case { OptName, Value } of
+              { addr, {_,_,_,_} }         -> true;
+              { addr, {_,_,_,_,_,_,_,_} } -> true;
+              _                           -> false
+            end
           end, Options )
         end, Interfaces)
       )];
