@@ -106,22 +106,25 @@ handle_info({ send_digest, #digestMember{ member_ip = MemberIp, member_port = Me
   {noreply, {messaging, Config}};
 
 %% @doc Sends the digest to a member in a multicast overlay.
-handle_info({ send_digest, #digestMember{}, DigestType, Digest },
+handle_info({ send_digest, #digestMember{ member_ip = MemberIp }, DigestType, Digest },
             { messaging, Config = #overlayConfig{ name = OverlayName,
                                                   port = OverlayPort,
                                                   multicast = #multicastConfig{ ip = MulticastIp },
-                                                  internal = #internalConfig{ socket = S } } }) when is_atom(DigestType) ->
+                                                  internal = #internalConfig{ socket = S } } })
+  when is_atom(DigestType) andalso MemberIp =/= <<"127.0.0.1">> andalso MemberIp =/= <<"::1">> ->
   ok = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
                                   MulticastIp, OverlayPort, S ),
   {noreply, {messaging, Config}};
 
 %% @doc Sends the digest to a local member when in multicast overlay.
-handle_info({ send_digest, #digestMember{ member_ip = <<"127.0.0.1">>, member_port = MemberPort }, DigestType, Digest },
+handle_info({ send_digest, #digestMember{ member_ip = MemberIp, member_port = MemberPort }, DigestType, Digest },
             { messaging, Config = #overlayConfig{ name = OverlayName,
                                                   multicast = #multicastConfig{},
-                                                  internal = #internalConfig{ local_socket = S } } }) when is_atom(DigestType) ->
+                                                  internal = #internalConfig{ local_socket = S } } })
+  when is_atom(DigestType) andalso ( MemberIp =:= <<"127.0.0.1">> orelse MemberIp =:= <<"::1">> ) ->
+  { ok, Address } = inet:parse_address( binary_to_list( MemberIp ) ),
   ok = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
-                                  {127,0,0,1}, MemberPort, S ),
+                                  Address, MemberPort, S ),
   {noreply, {messaging, Config}};
 
 %% @doc Sends the digest over a multicast address.
