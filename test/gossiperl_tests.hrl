@@ -10,11 +10,13 @@
                         lager, uuid, ssl, idna, hackney, gossiperl ]).
 
 -define(SEED_IP, <<"127.0.0.1">>).
+-define(SEED_IPV6, <<"2001:0db8:0:f101::1">>).
 
 -define(SEED_IP_RECONFIG, <<"192.168.0.1">>).
 -define(RACKS_RECONFIG, <<"{ \"dev_rack1\": [\"", ?SEED_IP_RECONFIG/binary ,"\"] }">>).
 
 -define(BIN_CONFIG_VALID, <<"{ \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"", ?SEED_IP/binary ,"\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>).
+-define(BIN_CONFIG_VALID_IPV6, <<"{ \"ip\": \"::\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"", ?SEED_IPV6/binary ,"\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>).
 -define(BIN_CONFIG_VALID_MULTICAST, <<"{ \"port\": 6666, \"multicast\": { \"ip\": \"224.0.0.251\", \"ttl\": 4, \"local_iface_address\": \"0.0.0.0\" }, \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>).
 -define(BIN_CONFIG_VALID_MULTICAST_NO_RACKS, <<"{ \"port\": 6666, \"multicast\": { \"ip\": \"224.0.0.251\", \"ttl\": 4, \"local_iface_address\": \"0.0.0.0\" }, \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>).
 -define(BIN_CONFIG_MEMBER_NAME, <<"{ \"member_name\": \"hello_world\", \"ip\": \"0.0.0.0\", \"port\": 6666, \"rack_name\": \"dev_rack1\", \"racks\": { \"dev_rack1\": [\"127.0.0.1\"] } , \"symmetric_key\": \"v3JElaRswYgxOt4b\" }">>).

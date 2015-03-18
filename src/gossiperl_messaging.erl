@@ -50,7 +50,9 @@ init([Config = #overlayConfig{ multicast = #multicastConfig{ local_port = LocalP
                          0 -> (Port + 1);
                          _ -> LocalPort
                        end,
-      case gen_udp:open(LocalPortToUse, [binary, {ip, {127,0,0,1}}] ++ ?INET_OPTS(Config)) of
+      % choose correct local IPvX address based on what kind of address overlay binds to:
+      LocalIpAddress = case IpAddress of {_,_,_,_} -> {127,0,0,1}; {_,_,_,_,_,_,_,_} -> {0,0,0,0,0,0,0,1} end,
+      case gen_udp:open(LocalPortToUse, [binary, {ip, LocalIpAddress}] ++ ?INET_OPTS(Config)) of
         { ok, LocalOverlaySocket } ->
           {ok, {messaging, gossiperl_configuration:overlay_socket( OverlaySocket, LocalOverlaySocket, Config ) }};
         { error, Reason } ->
@@ -210,10 +212,9 @@ handle_info({ message, digestAck, DecodedPayload = #digestAck{ name = FromMember
   when CurrentMemberName =/= FromMemberName ->
   [ gen_server:cast( ?MEMBERSHIP(Config), { reachable_remote,
                                             case Member#digestMember.member_ip of
-                                              <<"0.0.0.0">> ->
-                                                Member#digestMember{ member_ip = gossiperl_common:ip_to_binary( ClientIp ) };
-                                              _ ->
-                                                Member
+                                              <<"0.0.0.0">> -> Member#digestMember{ member_ip = gossiperl_common:ip_to_binary( ClientIp ) };
+                                              <<"::">>      -> Member#digestMember{ member_ip = gossiperl_common:ip_to_binary( ClientIp ) };
+                                              _             -> Member
                                             end } ) || Member <- lists:filter( fun( Member ) ->
                                                                                  Member#digestMember.member_name =/= Config#overlayConfig.member_name
                                                                                end, DecodedPayload#digestAck.membership) ],
@@ -245,22 +246,11 @@ handle_info({ message, digestExit, DecodedPayload, { _ClientIp, _ClientPort } },
 %%% DIGEST_SUBSCRIBE
 
 %% @doc Process incoming digestSubscribe.
+handle_info({ message, digestSubscribe, DecodedPayload, { {0,0,0,0,0,0,0,1}, _ClientPort } }, { messaging, Config }) ->
+  {noreply, {messaging, process_digest_subscribe( DecodedPayload, Config )}};
+
 handle_info({ message, digestSubscribe, DecodedPayload, { {127,0,0,1}, _ClientPort } }, { messaging, Config }) ->
-  case gen_server:call( ?MEMBERSHIP(Config), { is_member_secret_valid, DecodedPayload#digestSubscribe.name, DecodedPayload#digestSubscribe.secret } ) of
-    { true, Member } ->
-      ?SUBSCRIPTIONS( Config ) ! { subscribe,
-                                   DecodedPayload#digestSubscribe.event_types,
-                                   DecodedPayload#digestSubscribe.name,
-                                   Config#overlayConfig.member_name },
-      DigestSubscribeAck = #digestSubscribeAck{
-        heartbeat = gossiperl_common:get_timestamp(),
-        reply_id = DecodedPayload#digestSubscribe.id,
-        event_types = DecodedPayload#digestSubscribe.event_types },
-      self() ! { send_digest, Member, digestSubscribeAck, DigestSubscribeAck };
-    { false, Reason } ->
-      gossiperl_log:warn("[~p] Ignoring digestSubscribe. Secret problematic. Reason: ~p.", [ Config#overlayConfig.name, Reason ])
-  end,
-  {noreply, {messaging, Config}};
+  {noreply, {messaging, process_digest_subscribe( DecodedPayload, Config )}};
 
 handle_info({ message, digestSubscribe, _DecodedPayload, { _ClientIp, _ClientPort } }, { messaging, Config }) ->
   % digestSubscribe coming from outside of localhost, ignoring
@@ -269,22 +259,11 @@ handle_info({ message, digestSubscribe, _DecodedPayload, { _ClientIp, _ClientPor
 %%% DIGEST_UNSUBSCRIBE
 
 %% @doc Process incoming digestUnsubscribe.
+handle_info({ message, digestUnsubscribe, DecodedPayload, { {0,0,0,0,0,0,0,1}, _ClientPort } }, { messaging, Config }) ->
+  {noreply, {messaging, process_digest_unsubscribe( DecodedPayload, Config )}};
+
 handle_info({ message, digestUnsubscribe, DecodedPayload, { {127,0,0,1}, _ClientPort } }, { messaging, Config }) ->
-  case gen_server:call( ?MEMBERSHIP(Config), { is_member_secret_valid, DecodedPayload#digestUnsubscribe.name, DecodedPayload#digestUnsubscribe.secret } ) of
-    { true, Member } ->
-      ?SUBSCRIPTIONS( Config ) ! { unsubscribe,
-                                   DecodedPayload#digestUnsubscribe.event_types,
-                                   DecodedPayload#digestUnsubscribe.name,
-                                   Config#overlayConfig.member_name },
-      DigestUnsubscribeAck = #digestUnsubscribeAck{
-        heartbeat = gossiperl_common:get_timestamp(),
-        reply_id = DecodedPayload#digestUnsubscribe.id,
-        event_types = DecodedPayload#digestUnsubscribe.event_types },
-      self() ! { send_digest, Member, digestUnsubscribeAck, DigestUnsubscribeAck };
-    { false, Reason } ->
-      gossiperl_log:warn("[~p] Ignoring digestUnsubscribe. Secret problematic. Reason: ~p.", [ Config#overlayConfig.name, Reason ])
-  end,
-  {noreply, {messaging, Config}};
+  {noreply, {messaging, process_digest_unsubscribe( DecodedPayload, Config )}};
 
 handle_info({ message, digestUnsubscribe, _DecodedPayload, { _ClientIp, _ClientPort } }, { messaging, Config }) ->
   % digestUnsubscribe coming from outside of localhost, ignoring
@@ -331,3 +310,27 @@ deliver_digest_via_socket( DigestType, Digest, OverlayName, Encryption, Ip, Port
                                            { data, DigestType, out },
                                            byte_size(MaybeEncrypted) } ),
   gen_udp:send( Socket, Ip, Port, MaybeEncrypted ).
+
+process_digest_subscribe( #digestSubscribe{ name = DigestMemberName, secret = Secret, event_types = EventTypes, id = DigestId },
+                          Config = #overlayConfig{ name = OverlayName, member_name = MemberName } ) ->
+  case gen_server:call( ?MEMBERSHIP(Config), { is_member_secret_valid, DigestMemberName, Secret } ) of
+    { true, Member } ->
+      ?SUBSCRIPTIONS( Config ) ! { subscribe, EventTypes, DigestMemberName, MemberName },
+      self() ! { send_digest, Member, digestSubscribeAck,
+                 #digestSubscribeAck{ heartbeat = gossiperl_common:get_timestamp(), reply_id = DigestId, event_types = EventTypes } };
+    { false, Reason } ->
+      gossiperl_log:warn("[~p] Ignoring digestSubscribe. Secret problematic. Reason: ~p.", [ OverlayName, Reason ])
+  end,
+  Config.
+
+process_digest_unsubscribe( #digestUnsubscribe{ name = DigestMemberName, secret = Secret, event_types = EventTypes, id = DigestId },
+                            Config = #overlayConfig{ name = OverlayName, member_name = MemberName } ) ->
+  case gen_server:call( ?MEMBERSHIP(Config), { is_member_secret_valid, DigestMemberName, Secret } ) of
+    { true, Member } ->
+      ?SUBSCRIPTIONS( Config ) ! { unsubscribe, EventTypes, DigestMemberName, MemberName },
+      self() ! { send_digest, Member, digestUnsubscribeAck,
+                 #digestUnsubscribeAck{ heartbeat = gossiperl_common:get_timestamp(), reply_id = DigestId, event_types = EventTypes } };
+    { false, Reason } ->
+      gossiperl_log:warn("[~p] Ignoring digestUnsubscribe. Secret problematic. Reason: ~p.", [ OverlayName, Reason ])
+  end,
+  Config.
