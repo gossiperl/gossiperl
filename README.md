@@ -4,13 +4,17 @@
 
 Gossiperl is a language agnostic, Apache Thrift based gossip middleware and message bus.
 
-The purpose of gossiperl is to provide a gossip as a service for applications running on a host.
+## Features:
 
-Gossiperl is written in Erlang. Once a gossiperl daemon is compiled and installed on the host, an application can connect and start exchanging data with other members. This is achieved by allowing applications to register their own overlays. Every overlay can be secured using dedicated pair of symmetric key and iv (AES-256). Only the member who has access to a given set of symmetric key and iv has access to the data exchanged on that overlay. Additionally, every gossip client uses their own secret key to prevent spoofing by other overlay members. Messages between applications can be shared only via gossiperl daemon. The daemon knows the secret keys of every application and will not attempt passing any messages from the application if the key doesn’t match.
-
-Every overlay uses its own separate configuration. Such overlays behave as completely separate systems.
-
-Gossiperl client applications can publish and subscribe to digest types provided by other applications.
+ - language agnostic, communication via Apache Thrift interface
+ - running as a service on the host
+ - multiple overlays, applications may use their own overlays
+ - every overlay behaves like a separate application and may use different configuration
+ - security with AES-256 encryption, clients secured with their own secrets
+ - managed with a REST API
+ - multicast overlays
+ - IPv6
+ - simple publish/subscribe capabilities
 
 ## Client libraries:
 
@@ -22,7 +26,7 @@ Gossiperl client applications can publish and subscribe to digest types provided
 
 ## Documentation
 
-https://github.com/gossiperl/gossiperl/wiki
+Full documentation avaialable [here](https://github.com/gossiperl/gossiperl/wiki).
 
 ## Unit tests
 
