@@ -63,7 +63,11 @@ handle_sync_event({ leave }, From, _State, S) ->
   { next_state, dropped, S, 0 };
 
 handle_sync_event({ member_info }, From, State, S=#state{ name=MemberName, ip=Ip, port=Port, last_heard=LastHeardOf }) ->
-  gen_fsm:reply(From, { case Ip of <<"127.0.0.1">> -> local; _ -> remote end, State, MemberName, Ip, Port, LastHeardOf }),
+  gen_fsm:reply(From, { case Ip of
+                          <<"127.0.0.1">> -> local;
+                          <<"::1">>       -> local;
+                          _               -> remote
+                        end, State, MemberName, Ip, Port, LastHeardOf }),
   { next_state, State, S, ?MEMBER_CHECK_STATE_EVERY };
 
 handle_sync_event({ is_secret_valid, OtherSecret }, From, State, S=#state{ secret=Secret }) ->

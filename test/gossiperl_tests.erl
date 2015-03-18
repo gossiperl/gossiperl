@@ -7,13 +7,14 @@
 gossiperl_test_() ->
   {setup, fun start/0, fun stop/1, [
     fun test_get_iface_ip/0,
-    fun test_get_all_ipv4_addrs/0,
+    fun test_get_all_ip_addrs/0,
     fun test_get_timestamp/0,
     fun test_parse_binary_ip/0,
     fun test_binary_join/0,
     fun test_configuration_property_from_json/0,
     fun test_rack_configuration/0,
     fun test_valid_configuration_from_json/0,
+    fun test_valid_configuration_from_json_ipv6/0,
     fun test_valid_multicast_configuration_from_json/0,
     fun test_valid_multicast_no_racks_configuration_from_json/0,
     fun test_invalid1_configuration_from_json/0,
@@ -25,6 +26,7 @@ gossiperl_test_() ->
     fun configuration_process/0,
     fun test_serialize_deserialize/0,
     fun test_add_remove_overlay/0,
+    fun test_add_remove_overlay_ipv6/0,
     fun test_add_remove_multicast_overlay/0,
     fun test_encrypt_decrypt/0
     ] }.
@@ -59,8 +61,8 @@ test_get_iface_ip() ->
   ?assertMatch({ error, no_iface }, ?COMMON:get_iface_ip( NotInterface )),
   ?assertMatch({ ok, { _,_,_,_ } }, ?COMMON:get_iface_ip( BinIf )).
 
-test_get_all_ipv4_addrs() ->
-  ?assertMatch([ _ | _ ], ?COMMON:get_all_ipv4_addrs()).
+test_get_all_ip_addrs() ->
+  ?assertMatch([ _ | _ ], ?COMMON:get_all_ip_addrs()).
 
 test_get_timestamp() ->
   ?assertEqual( ?COMMON:get_timestamp( {1421,450191,9061} ), 1421450191 ).
@@ -116,6 +118,12 @@ test_rack_configuration() ->
 test_valid_configuration_from_json() ->
   % This is a valid configuration:
   Configuration = ?BIN_CONFIG_VALID,
+  JsonData = jsx:decode( Configuration ),
+  ?assertMatch({ ok, _ }, ?CONFIG:configuration_from_json(JsonData, ?OVERLAY)).
+
+test_valid_configuration_from_json_ipv6() ->
+  % This is a valid configuration:
+  Configuration = ?BIN_CONFIG_VALID_IPV6,
   JsonData = jsx:decode( Configuration ),
   ?assertMatch({ ok, _ }, ?CONFIG:configuration_from_json(JsonData, ?OVERLAY)).
 
@@ -214,6 +222,20 @@ test_serialize_deserialize() ->
 % Add / remove overlay basics:
 test_add_remove_overlay() ->
   Configuration = ?BIN_CONFIG_VALID,
+  JsonData = jsx:decode( Configuration ),
+  ParseResult = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
+  { ok, ParseConfiguration } = ParseResult,
+  ?assertMatch( { ok, _ }, gossiperl_sup:add_overlay( ?OVERLAY, ParseConfiguration ) ),
+  ?assertEqual( [ list_to_binary(atom_to_list(?OVERLAY)) ], gossiperl_sup:list_overlays() ),
+  LoadConfiguratonResult = begin timer:sleep(1000), ?CONFIG:for_overlay( ?OVERLAY ) end,
+  ?assertMatch( { ok, { _, _ } }, LoadConfiguratonResult ),
+  { ok, { _, LoadedConfiguration } } = LoadConfiguratonResult,
+  ?assertEqual( true, gossiperl_sup:remove_overlay( ?OVERLAY, LoadedConfiguration ) ),
+  ?assertEqual( [], gossiperl_sup:list_overlays() ).
+
+% Add / remove IPv6 overlay basics:
+test_add_remove_overlay_ipv6() ->
+  Configuration = ?BIN_CONFIG_VALID_IPV6,
   JsonData = jsx:decode( Configuration ),
   ParseResult = ?CONFIG:configuration_from_json(JsonData, ?OVERLAY),
   { ok, ParseConfiguration } = ParseResult,

@@ -35,23 +35,22 @@ reply(<<"GET">>, Req) ->
         { ok, token_ok } ->
           OutConfiguration = [
             { member_name, OverlayConfig#overlayConfig.member_name },
-            { ip, list_to_binary( inet:ntoa(OverlayConfig#overlayConfig.ip) ) },
+            { ip, gossiperl_common:ip_to_binary( OverlayConfig#overlayConfig.ip) },
             { port, OverlayConfig#overlayConfig.port },
             { multicast, case OverlayConfig#overlayConfig.multicast of
                            undefined -> <<"off">>;
-                             _       -> [ { ip, list_to_binary( inet:ntoa(OverlayConfig#overlayConfig.multicast#multicastConfig.ip) ) },
+                             _       -> [ { ip, gossiperl_common:ip_to_binary( OverlayConfig#overlayConfig.multicast#multicastConfig.ip ) },
                                           { ttl, OverlayConfig#overlayConfig.multicast#multicastConfig.ttl },
-                                          { local_iface_address, list_to_binary( inet:ntoa(OverlayConfig#overlayConfig.multicast#multicastConfig.local_iface_address) ) },
+                                          { local_iface_address, gossiperl_common:ip_to_binary( OverlayConfig#overlayConfig.multicast#multicastConfig.local_iface_address) },
                                           { local_port, case OverlayConfig#overlayConfig.multicast#multicastConfig.local_port of
                                                           0 -> (OverlayConfig#overlayConfig.port+1);
                                                           _ -> OverlayConfig#overlayConfig.multicast#multicastConfig.local_port
                                                         end } ]
                          end },
             { ip_hint, case OverlayConfig#overlayConfig.ip_hint of
-                            {_,_,_,_} ->
-                              list_to_binary( inet:ntoa( OverlayConfig#overlayConfig.ip_hint ) );
-                            _ ->
-                              <<"undefined">>
+                            {_,_,_,_}         -> gossiperl_common:ip_to_binary( OverlayConfig#overlayConfig.ip_hint );
+                            {_,_,_,_,_,_,_,_} -> gossiperl_common:ip_to_binary( OverlayConfig#overlayConfig.ip_hint );
+                            _                 -> <<"undefined">>
                        end },
             { iface, case OverlayConfig#overlayConfig.iface of
                             undefined ->
@@ -63,7 +62,7 @@ reply(<<"GET">>, Req) ->
             { racks, lists:foldl( fun( { RackName, SeedIps }, Acc ) ->
                                     Acc ++ [ {  RackName, 
                                                 lists:foldl(  fun( SeedIp, Acc2 ) ->
-                                                                Acc2 ++ [ list_to_binary( inet:ntoa(SeedIp) ) ]
+                                                                Acc2 ++ [ gossiperl_common:ip_to_binary(SeedIp) ]
                                                               end, [], SeedIps ) } ]
                                   end, [], OverlayConfig#overlayConfig.racks) },
             { quarantine_after, OverlayConfig#overlayConfig.quarantine_after },

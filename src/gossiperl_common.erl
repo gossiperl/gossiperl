@@ -23,12 +23,14 @@
 -export([get_timestamp/0, get_timestamp/1]).
 -export([
   get_iface_ip/1,
-  get_all_ipv4_addrs/0,
+  get_all_ip_addrs/0,
   parse_binary_ip/1,
   seed_random/0,
   binary_join/2,
   locate_file/1,
-  privdir/0]).
+  ip_to_binary/1,
+  privdir/0,
+  bits_to_upper/1]).
 
 -include("gossiperl.hrl").
 
@@ -44,14 +46,18 @@ get_timestamp({Mega,Sec,Micro}) ->
   trunc( ((Mega*1000000+Sec)*1000000+Micro) / 1000000 ).
 
 %% @doc Get first IPv4 address of the interface, if any.
--spec get_iface_ip( binary() ) -> { ok, ip4_address() } | { error, no_addr } | { error, no_iface }.
+-spec get_iface_ip( binary() ) -> { ok, inet:ip_address() } | { error, no_addr } | { error, no_iface }.
 get_iface_ip(Lookup) when is_binary( Lookup ) ->
   case inet:getifaddrs() of
     { ok, Interfaces } ->
       case lists:filter(fun({ IfaceName, _ }) -> list_to_binary( IfaceName ) =:= Lookup end, Interfaces) of
         [ { _, Options } ] ->
           Addresses = lists:filter( fun( { OptionName, Value } ) ->
-                        case { OptionName, Value } of { addr, {_,_,_,_} } -> true; _ -> false end
+                        case { OptionName, Value } of
+                          { addr, {_,_,_,_} }         -> true;
+                          { addr, {_,_,_,_,_,_,_,_} } -> true;
+                          _                           -> false
+                        end
                       end, Options ),
           case Addresses of
             [] -> { error, no_addr }; [ { addr, Ip } | _ ] -> { ok, Ip }
@@ -61,24 +67,28 @@ get_iface_ip(Lookup) when is_binary( Lookup ) ->
     _ -> { error, no_iface }
   end.
 
-%% @doc Returns a of IPv4 addresses of every interface installed on the host machine.
--spec get_all_ipv4_addrs() -> { ok, [ ip4_address() ] } | { error, no_iface }.
-get_all_ipv4_addrs() ->
+%% @doc Returns a list of IP addresses of every interface installed on the host machine.
+-spec get_all_ip_addrs() -> { ok, [ inet:ip_address() ] } | { error, no_iface }.
+get_all_ip_addrs() ->
   case inet:getifaddrs() of
     { ok, Interfaces } ->
       [ Ip || { addr, Ip } <- lists:flatten(
         lists:map(fun({_, Options}) ->
           lists:filter( fun({ OptName, Value }) ->
-            case { OptName, Value } of { addr, {_,_,_,_} } -> true; _ -> false end
+            case { OptName, Value } of
+              { addr, {_,_,_,_} }         -> true;
+              { addr, {_,_,_,_,_,_,_,_} } -> true;
+              _                           -> false
+            end
           end, Options )
         end, Interfaces)
       )];
     _ -> { error, no_iface }
   end.
 
--spec parse_binary_ip( binary() ) -> ip4_address() | { error, { no_ip, any() } }.
+-spec parse_binary_ip( binary() ) -> inet:ip_address() | { error, { no_ip, any() } }.
 parse_binary_ip(BinaryIp) when is_binary( BinaryIp ) ->
-  case inet:parse_ipv4_address( binary_to_list( BinaryIp ) ) of
+  case inet:parse_address( binary_to_list( BinaryIp ) ) of
     { ok, Ip } -> Ip;
     _          -> { error, { not_ip, BinaryIp } }
   end.
@@ -111,6 +121,10 @@ binary_join(List, Sep) ->
     end
   end, <<>>, List).
 
+-spec ip_to_binary( inet:ip_address() ) -> binary().
+ip_to_binary(IPAddress) ->
+  list_to_binary( inet:ntoa( IPAddress ) ).
+
 locate_file(Filename) ->
   case string:substr(Filename, 1, 1) of
     "/" ->
@@ -127,3 +141,10 @@ privdir() ->
       filename:join(AppPath, "priv");
     Dir -> Dir
   end.
+
+%% @doc Convert binary to uppercase.
+-spec bits_to_upper( binary() ) -> binary().
+bits_to_upper(<<X,Rest/bits>>) ->
+  <<(string:to_upper(X)), (bits_to_upper(Rest))/bits>>;
+bits_to_upper(_) ->
+  <<>>.

@@ -32,30 +32,26 @@ start_link() ->
 
 init([]) ->
   
-  NumAcceptors = case application:get_env( gossiperl, rest_num_acceptors ) of
-    { ok, Value1 } -> Value1;
-    _              -> 100
-  end,
-
-  Port = case application:get_env( gossiperl, rest_port ) of
-    { ok, Value2 } -> Value2;
-    _              -> 8080
-  end,
+  NumAcceptors = application:get_env( gossiperl, rest_num_acceptors, 100 ),
+  Port         = application:get_env( gossiperl, rest_port, 8080 ),
+  IpAddress    = gossiperl_common:parse_binary_ip( application:get_env( gossiperl, rest_ip, <<"0.0.0.0">> ) ),
 
   CowboyArguments = case application:get_env( gossiperl, rest_ssl ) of
     { ok, [ { <<"certfile">>, CertFile }, { <<"keyfile">>, KeyFile } ] } ->
-      [ {port, Port },
+      [ { ip, IpAddress },
+        { port, Port },
         { reuseaddr, true },
         { certfile, gossiperl_common:locate_file( binary_to_list(CertFile) ) },
         { keyfile, gossiperl_common:locate_file( binary_to_list(KeyFile) ) } ];
     { ok, [ { <<"cacertfile">>, CACertFile }, { <<"certfile">>, CertFile }, { <<"keyfile">>, KeyFile } ] } ->
-      [ {port, Port },
+      [ { ip, IpAddress },
+        { port, Port },
         { reuseaddr, true },
         { cacertfile, gossiperl_common:locate_file( binary_to_list(CACertFile) ) },
         { certfile, gossiperl_common:locate_file( binary_to_list(CertFile) ) },
         { keyfile, gossiperl_common:locate_file( binary_to_list(KeyFile) ) } ];
     _ ->
-      [ {port, Port } ]
+      [ { ip, IpAddress }, { port, Port } ]
   end,
 
   Dispatch = cowboy_router:compile([

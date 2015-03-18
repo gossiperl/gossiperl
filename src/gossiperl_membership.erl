@@ -42,7 +42,8 @@ init([Config = #overlayConfig{}]) ->
 
 %% @doc Handle digest given by messaging.
 handle_cast({ reachable, Member=#digestMember{ member_name=MemberName, member_ip=MemberIp, member_port=MemberPort }, DigestId, Secret },
-            { membership, Config=#overlayConfig{ name=OverlayName }, Membership }) when MemberIp =:= <<"127.0.0.1">> ->
+            { membership, Config=#overlayConfig{ name=OverlayName }, Membership })
+  when MemberIp =:= <<"127.0.0.1">> orelse MemberIp =:= <<"::1">> ->
   case dict:is_key(MemberName, Membership) of
     false ->
       {ok, MemberFsmPid} = gossiperl_member_fsm:start_link( Config, MemberName, MemberIp, MemberPort, gossiperl_common:get_timestamp(), Secret ),
@@ -65,7 +66,8 @@ handle_cast({ reachable, Member=#digestMember{ member_name=MemberName, member_ip
   end;
 
 handle_cast({ reachable, Member=#digestMember{ member_name=MemberName, member_ip=MemberIp, member_port=MemberPort }, DigestId, Secret },
-            { membership, Config=#overlayConfig{ name=OverlayName }, Membership }) when MemberIp =/= <<"127.0.0.1">> ->
+            { membership, Config=#overlayConfig{ name=OverlayName }, Membership })
+  when MemberIp =/= <<"127.0.0.1">> andalso MemberIp =/= <<"::1">> ->
   case Config#overlayConfig.secret of
     Secret ->
       case dict:is_key(MemberName, Membership) of
@@ -112,7 +114,11 @@ handle_cast({ reachable_remote, #digestMember{ member_name=MemberName, member_ip
 handle_cast({ digest_ack, Member=#digestMember{ member_ip=MemberIp }, DigestId }, {membership, Config, Membership}) ->
   AllMembers = [ self_as_member(Config) ] ++ to_digest_members(
                                                list_members( reachable,
-                                                             case MemberIp of <<"127.0.0.1">> -> local; _ -> remote end,
+                                                             case MemberIp of
+                                                               <<"127.0.0.1">> -> local;
+                                                               <<"::1">>       -> local;
+                                                               _               -> remote
+                                                             end,
                                                              dict:to_list(Membership) ) ),
   PacketDigestAck = #digestAck{
     name = Config#overlayConfig.member_name,
@@ -124,7 +130,9 @@ handle_cast({ digest_ack, Member=#digestMember{ member_ip=MemberIp }, DigestId }
   gen_server:cast(self(), { digest_subscriptions, Member, DigestId }),
   {noreply, {membership, Config, Membership}};
 
-handle_cast({ digest_subscriptions, #digestMember{ member_ip = <<"127.0.0.1">> }, _DigestId }, {membership, Config, Membership}) ->
+handle_cast({ digest_subscriptions, #digestMember{ member_ip = MemberIp }, _DigestId }, {membership, Config, Membership})
+  when MemberIp =:= <<"127.0.0.1">> orelse MemberIp =:= <<"::1">> ->
+  % not replying to a subscription digest sent from localhost
   {noreply, {membership, Config, Membership}};
 
 handle_cast({ digest_subscriptions, Member = #digestMember{ member_name = MemberName }, DigestId }, {membership, Config, Membership}) ->
@@ -268,13 +276,13 @@ gossip_reachable(Visibility, DigestType, Digest, Config = #overlayConfig{}, Memb
   end.
 
 %% @doc Gossip digest to a random seed.
--spec gossip_seed( atom(), term(), gossiperl_config() ) -> ip4_address() | undefined.
+-spec gossip_seed( atom(), term(), gossiperl_config() ) -> inet:ip_address() | undefined.
 gossip_seed(DigestType, Digest, Config = #overlayConfig{}) when is_atom(DigestType) ->
   case random_seed(Config) of
     undefined ->
       undefined;
     SeedIp ->
-      ?MESSAGING( Config ) ! { send_digest, #digestMember{ member_ip=list_to_binary(inet:ntoa(SeedIp)), member_port=Config#overlayConfig.port }, DigestType, Digest },
+      ?MESSAGING( Config ) ! { send_digest, #digestMember{ member_ip=gossiperl_common:ip_to_binary(SeedIp), member_port=Config#overlayConfig.port }, DigestType, Digest },
       SeedIp
   end.
 
@@ -286,7 +294,7 @@ gossip_seed(DigestType, Digest, Config = #overlayConfig{}) when is_atom(DigestTy
 self_as_member( Config = #overlayConfig{} ) ->
   #digestMember{
     member_name      = Config#overlayConfig.member_name,
-    member_ip        = list_to_binary(inet:ntoa(Config#overlayConfig.ip)),
+    member_ip        = gossiperl_common:ip_to_binary(Config#overlayConfig.ip),
     member_port      = Config#overlayConfig.port,
     member_heartbeat = gossiperl_common:get_timestamp() }.
 
@@ -308,12 +316,12 @@ random_seed(Config = #overlayConfig{}) ->
   case SeedIps of [] -> undefined; _ -> lists:nth( random:uniform( length( SeedIps ) ), SeedIps ) end.
 
 %% @doc Is member a seed?
--spec is_seed( binary(), [ ip4_address() ] ) -> boolean().
+-spec is_seed( binary(), [ inet:ip_address() ] ) -> boolean().
 is_seed(MemberIp, Seeds) when is_binary(MemberIp) andalso is_list(Seeds) ->
   lists:member( gossiperl_common:parse_binary_ip( MemberIp ), Seeds ).
 
 %% @doc Substract known IP addresses from the list of IP addresses. Used for seed establishing.
--spec remove_known_ips( [ ip4_address() ], [ ip4_address() ] ) -> [ ip4_address() ].
+-spec remove_known_ips( [ inet:ip_address() ], [ inet:ip_address() ] ) -> [ inet:ip_address() ].
 remove_known_ips( ListOfIps, KnownIps )
   when is_list(ListOfIps) andalso is_list(KnownIps) ->
   ListOfIps -- KnownIps.
