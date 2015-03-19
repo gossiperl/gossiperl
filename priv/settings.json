@@ -16,7 +16,8 @@
   "rest_port": 8080,
   "statictics_backend": {
     "enabled": false,
-    "influxdb": {
+    "engine": "gossiperl_statistics_influxdb",
+    "gossiperl_statistics_influxdb_configuration": {
       "host": "127.0.0.1",
       "port": 8086,
       "username": "root",

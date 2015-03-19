@@ -34,10 +34,10 @@ reply(<<"GET">>, Req) ->
       case gen_server:call( gossiperl_web, { authorize_token, OverlayConfig, Req } ) of
         { ok, token_ok } ->
           RequestedWindow = cowboy_req:binding(window, Req, <<"total">>),
-          AllowedWindows = [ <<"total">>, <<"1d">>, <<"12h">>, <<"6h">>, <<"3h">>, <<"1h">>, <<"30m">>, <<"10m">>, <<"1m">> ],
+          AllowedWindows = gen_server:call( gossiperl_statistics, supported_windows ),
           case lists:member( RequestedWindow, AllowedWindows ) of
             true ->
-              StatisticsResult = gen_server:call( gossiperl_statistics, { get_summary, RequestedOverlayName, RequestedWindow } ),
+              StatisticsResult = gen_server:call( gossiperl_statistics, { summary, RequestedOverlayName, RequestedWindow } ),
               case StatisticsResult of
                 not_running ->
                   cowboy_req:reply(200, [

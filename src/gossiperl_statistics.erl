@@ -22,177 +22,157 @@
 
 -behaviour(gen_server).
 
--export([start_link/0, stop/0]).
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3, terminate/2]).
+-export([ start_link/0,
+          stop/0,
+          init/1,
+          handle_call/3,
+          handle_cast/2,
+          handle_info/2,
+          code_change/3,
+          terminate/2 ]).
 
--include("gossiperl.hrl").
+%%%=========================================================================
+%%%  API
+%%%=========================================================================
 
--include_lib("erflux/include/erflux.hrl").
+-type proc_state() :: term().
+-type overlay_name() :: binary().
+-type summary_window() :: binary().
+-type digest_type() :: binary().
+-type record_data() :: { data, digest_type(), in }
+                       | { data, digest_type(), out }
+                       | { message_failed, decrypt, in }
+                       | { message_failed, decode, in }.
+
+-export_type([ proc_state/0,
+               overlay_name/0,
+               summary_window/0,
+               digest_type/0,
+               record_data/0 ]).
+
+-callback supported_windows() -> [ binary() ].
+-callback configure( Args :: list() )
+          -> { ok, State :: proc_state() }
+          |  { error, Reason :: term() }.
+-callback ensure_storage( OverlayName :: overlay_name(), State :: proc_state() ) -> proc_state().
+-callback record( OverlayName :: overlay_name(), Data :: record_data(), Value :: number(), State :: proc_state() ) -> proc_state().
+-callback summary( OverlayName :: overlay_name(), RequestedWindow :: summary_window(), State :: proc_state() )
+          -> { ok, proc_state(), term() }
+          |  { error, term() }.
+
+%%%=========================================================================
+%%%  GenServer API
+%%%=========================================================================
+
+-record(state, { enabled = false :: boolean(),
+                 proc_state :: proc_state(),
+                 module :: pid() }).
 
 start_link() ->
-  gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+  gen_server:start_link({local, ?MODULE}, ?MODULE, [ application:get_env( gossiperl, statictics_backend ) ], []).
 
 stop() -> gen_server:cast(?MODULE, stop).
 
-init([]) ->
-  
-  case application:get_env( gossiperl, statictics_backend ) of
-    undefined ->
-      
-      gossiperl_log:info("Statistics not enabled. Backend configuration not given."),
-      { ok, { statistics, not_running } };
+init([ undefined ]) ->
+  gossiperl_log:info("Statistics backend configuration not given."),
+  { ok, #state{} };
 
-    { ok, BackendConfiguration } ->
-      case BackendConfiguration of
-        
-        [ { <<"enabled">>, true }, { <<"influxdb">>, BackendConfigurationSettings } ] ->
-
-          case influx_db_config( BackendConfigurationSettings, #erflux_config{} ) of
-            { ok, BackendConfigRecord } ->
-
-              application:start( ssl ),
-              application:start( idna ),
-              application:start( hackney ),
-              application:start( erflux ),
-
-              { ok, ErfluxPid } = erflux_http:start_link( gossiperl_erflux, BackendConfigRecord ),
-              gossiperl_log:notice("Using InfluxDB statistics backend with configuration ~p.", [ BackendConfigRecord ]),
-              { ok, { statistics, influxdb, ErfluxPid } };
-            { error, { badarg, BadArg } } ->
-              gossiperl_log:warn("Unsupported InfluxDB configuration parameter: ~p.", [BadArg]),
-              { ok, { statistics, not_running } }
-          end;
-
+init([ { ok, BackendConfiguration } ]) ->
+  BackendEnabled = proplists:get_value( <<"enabled">>, BackendConfiguration, false ),
+  case BackendEnabled of
+    true ->
+      gossiperl_log:info("Statistics backend enabled."),
+      BackendEngine = proplists:get_value( <<"engine">>, BackendConfiguration, undefined ),
+      case BackendEngine of
+        undefined ->
+          gossiperl_log:info("Statistics backend engine not configured. Please check statistics_backend/engine property."),
+          { ok, #state{} };
         _ ->
-          
-          gossiperl_log:info("Statistics not enabled. Unsupported backend configuration."),
-          { ok, { statistics, not_running } }
-
-      end
+          BackendModuleName = list_to_atom( binary_to_list( BackendEngine ) ),
+          gossiperl_log:info("Statistics using ~p backend.", [ BackendEngine ]),
+          case code:load_file( BackendModuleName ) of
+            { module, Module } ->
+              case BackendModuleName:configure( proplists:get_value( BackendEngine, BackendConfiguration, [] ) ) of
+                { ok, State } ->
+                  gossiperl_log:info("Statistics backend module loaded and started."),
+                  { ok, #state{ enabled = true, module = Module, proc_state = State } };
+                { error, Reason } ->
+                  gossiperl_log:error("Statistics backend could not be started. Reason: ~p.", [ Reason ]),
+                  { ok, #state{} }
+              end;
+            { error, Reason } ->
+              gossiperl_log:error("Statistics disabled. Could not load intended module ~p. Reason: ~p.", [ BackendModuleName, Reason ]),
+              { ok, #state{} }
+          end
+      end;
+    false ->
+      gossiperl_log:info("Statistics backend disabled."),
+      { ok, #state{} }
   end.
 
-handle_cast({ ensure_storage, _OverlayName }, { statistics, not_running }) ->
-  {noreply, { statistics, not_running }};
+handle_cast({ ensure_storage, _OverlayName }, S = #state{ enabled = false }) ->
+  {noreply, S};
 
-handle_cast({ ensure_storage, OverlayName }, { statistics, influxdb, ErfluxPid })
+handle_cast({ ensure_storage, OverlayName }, S = #state{ enabled = true, module = Module, proc_state = ProcessState })
   when is_binary(OverlayName) ->
-  case erflux_http:create_database( ErfluxPid, OverlayName ) of
-    ok ->
-      gossiperl_log:info("Created storage for statistics of ~p.", [ OverlayName ]);
-    { error, 409 } ->
-      gossiperl_log:warn("Statistics storage for ~p already exists.", [ OverlayName ]);
-    { error, Reason } ->
-      gossiperl_log:warn("Problem creating storage for statistics of ~p, reason ~p.", [ OverlayName, Reason ])
-  end,
-  {noreply, { statistics, influxdb, ErfluxPid }};
+  { noreply, S#state{ proc_state = Module:ensure_storage( OverlayName, ProcessState ) } };
 
-handle_cast({ record, _OverlayName, _Key, _Value }, { statistics, not_running }) ->
-  {noreply, { statistics, not_running }};
+handle_cast({ record, _OverlayName, _Key, _Value }, S = #state{ enabled = false }) ->
+  { noreply, S };
 
-handle_cast({ record, OverlayName, { data, DigestType, in }, Value }, { statistics, influxdb, ErfluxPid })
+handle_cast({ record, OverlayName, { data, DigestType, in }, Value }, S = #state{ enabled = true, module = Module, proc_state = ProcessState })
   when is_binary(OverlayName) andalso is_atom(DigestType) ->
   BinDigestType = list_to_binary(atom_to_list( DigestType )),
-  StatisticsWriteResult = erflux_http:write_point( ErfluxPid,
-                                                   OverlayName,
-                                                   <<BinDigestType/binary, "-in">>,
-                                                   [ { count, 1 },
-                                                     { size, Value } ] ),
-  gen_server:cast(self(), { analyse_write_result, OverlayName, StatisticsWriteResult, { data, DigestType, in } }),
-  {noreply, { statistics, influxdb, ErfluxPid }};
+  { noreply, S#state{ proc_state = Module:record( OverlayName, { data, BinDigestType, in }, Value, ProcessState ) } };
 
-handle_cast({ record, OverlayName, { data, DigestType, in }, Value }, { statistics, influxdb, ErfluxPid })
+handle_cast({ record, OverlayName, { data, DigestType, in }, Value }, S = #state{ enabled = true, module = Module, proc_state = ProcessState })
   when is_binary(DigestType) ->
-  StatisticsWriteResult = erflux_http:write_point( ErfluxPid,
-                                                   OverlayName,
-                                                   <<DigestType/binary, "-in">>,
-                                                   [ { count, 1 },
-                                                     { size, Value } ] ),
-  gen_server:cast(self(), { analyse_write_result, OverlayName, StatisticsWriteResult, { data, DigestType, in } }),
-  {noreply, { statistics, influxdb, ErfluxPid }};
+  { noreply, S#state{ proc_state = Module:record( OverlayName, { data, DigestType, in }, Value, ProcessState ) } };
 
-handle_cast({ record, OverlayName, { data, DigestType, out }, Value }, { statistics, influxdb, ErfluxPid })
+handle_cast({ record, OverlayName, { data, DigestType, out }, Value }, S = #state{ enabled = true, module = Module, proc_state = ProcessState })
   when is_binary(OverlayName) andalso is_atom(DigestType) ->
   BinDigestType = list_to_binary(atom_to_list( DigestType )),
-  StatisticsWriteResult = erflux_http:write_point( ErfluxPid,
-                                                   OverlayName,
-                                                   <<BinDigestType/binary, "-out">>,
-                                                   [ { count, 1 },
-                                                     { size, Value } ] ),
-  gen_server:cast(self(), { analyse_write_result, OverlayName, StatisticsWriteResult, { data, DigestType, out } }),
-  {noreply, { statistics, influxdb, ErfluxPid }};
+  { noreply, S#state{ proc_state = Module:record( OverlayName, { data, BinDigestType, out }, Value, ProcessState ) } };
 
-handle_cast({ record, OverlayName, { message_failed, decrypt, in }, Value }, { statistics, influxdb, ErfluxPid })
+handle_cast({ record, OverlayName, { message_failed, decrypt, in }, Value }, S = #state{ enabled = true, module = Module, proc_state = ProcessState })
   when is_binary(OverlayName) andalso is_number(Value) ->
-  StatisticsWriteResult = erflux_http:write_point( ErfluxPid,
-                                                   OverlayName,
-                                                   <<"message-failed-decrypt-in">>,
-                                                   [ { count, Value } ] ),
-  gen_server:cast(self(), { analyse_write_result, OverlayName, StatisticsWriteResult }),
-  {noreply, { statistics, influxdb, ErfluxPid }};
+  { noreply, S#state{ proc_state = Module:record( OverlayName, { message_failed, decrypt, in }, Value, ProcessState ) } };
 
-handle_cast({ record, OverlayName, { message_failed, decode, in }, Value }, { statistics, influxdb, ErfluxPid })
+handle_cast({ record, OverlayName, { message_failed, decode, in }, Value }, S = #state{ enabled = true, module = Module, proc_state = ProcessState })
   when is_binary(OverlayName) andalso is_number(Value) ->
-  StatisticsWriteResult = erflux_http:write_point( ErfluxPid,
-                                                   OverlayName,
-                                                   <<"message-failed-decode-in">>,
-                                                   [ { count, Value } ] ),
-  gen_server:cast(self(), { analyse_write_result, OverlayName, StatisticsWriteResult, { message_failed, decode, in } }),
-  {noreply, { statistics, influxdb, ErfluxPid }};
-
-handle_cast({ analyse_write_result, _OverlayName, ok, _Key }, { statistics, influxdb, ErfluxPid }) ->
-  {noreply, { statistics, influxdb, ErfluxPid }};
-
-handle_cast({ analyse_write_result, OverlayName, { error, Reason }, Key }, { statistics, influxdb, ErfluxPid }) ->
-  gossiperl_log:error("Statistics for ~p, ~p not recorded. Reason ~p.", [ OverlayName, Key, Reason ]),
-  {noreply, { statistics, influxdb, ErfluxPid }};
+  { noreply, S#state{ proc_state = Module:record( OverlayName, { message_failed, decode, in }, Value, ProcessState ) } };
 
 handle_cast(stop, LoopData) ->
   {noreply, LoopData}.
 
-handle_info(Msg, LoopData) ->
-  case LoopData of
-    {statistics, Config, _} ->
-      gossiperl_log:warn("[~p] handle_info: ~p", [Config#overlayConfig.name, Msg]);
-    _ ->
-      gossiperl_log:warn("[~p] handle_info: ~p", [self(), Msg])
-  end,
+handle_info(_, LoopData) ->
   {noreply, LoopData}.
 
-handle_call({ get_summary, _OverlayName, _RequestedWindow }, From, { statistics, not_running }) ->
+handle_call(supported_windows, From, S = #state{ enabled = false }) ->
+  gen_server:reply( From, [] ),
+  { noreply, S };
+
+handle_call(supported_windows, From, S = #state{ enabled = true, module = Module }) ->
+  gen_server:reply( From, Module:supported_windows() ),
+  { noreply, S };
+
+handle_call({ summary, _OverlayName, _RequestedWindow }, From, S = #state{ enabled = false }) ->
   gen_server:reply( From, not_running ),
-  { noreply, { statistics, not_running } };
+  { noreply, S };
 
-handle_call({ get_summary, OverlayName, RequestedWindow }, From, { statistics, influxdb, ErfluxPid })
+handle_call({ summary, OverlayName, RequestedWindow }, From, S = #state{ enabled = true, module = Module, proc_state = ProcessState })
   when is_binary( OverlayName ) andalso is_binary( RequestedWindow ) ->
-
-  % get all time series:
-  QueryResult = erflux_http:q(ErfluxPid, OverlayName, <<"select * from /.*/ limit 1">>),
-  SummaryResult = lists:foldl( fun( [{<<"name">>, SeriesName}, {<<"columns">>, SeriesColumns}, _Points], Acc ) ->
-
-    WhereCond = influx_db_where( RequestedWindow ),
-    SeriesQueryResult = case lists:member(<<"size">>, SeriesColumns) of
-      true ->
-        erflux_http:q(ErfluxPid, OverlayName, <<"select sum(count) as sum_packets, sum(size) as total_size from \"", SeriesName/binary, "\"", WhereCond/binary>>);
-      false ->
-        erflux_http:q(ErfluxPid, OverlayName, <<"select sum(count) as sum_packets from \"", SeriesName/binary, "\"", WhereCond/binary>>)
-    end,
-
-    case SeriesQueryResult of
-      [] ->
-        Acc ++ [ { SeriesName, nil } ];
-      [ [ { <<"name">>, SeriesName }, { <<"columns">>, ReturnedColumns }, { <<"points">>, [ ReturnedPoints ] } ] ] ->
-        Zipped = lists:zip( ReturnedColumns, ReturnedPoints ),
-        Acc ++ [ { SeriesName, lists:keydelete(<<"time">>, 1, Zipped) } ]
-    end
-
-  end, [], QueryResult),
-  
-  gen_server:reply( From, SummaryResult ),
-
-  { noreply, { statistics, influxdb, ErfluxPid } };
+  case Module:summary( OverlayName, RequestedWindow, ProcessState ) of
+    { ok, NewProcessState, Result } ->
+      gen_server:reply( From, Result ),
+      { noreply, S#state{ proc_state = NewProcessState } };
+    { error, ErrorReason } ->
+      gen_server:reply( From, ErrorReason ),
+      { noreply, S }
+  end;
 
 handle_call({message, Msg}, From, LoopData) ->
-  gossiperl_log:warn("handle_call: from ~p, message is: ~p", [From, Msg]),
+  gossiperl_log:warn("Statistics unhandled handle_call: from ~p, message is: ~p", [From, Msg]),
   {reply, ok, LoopData}.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -200,36 +180,4 @@ code_change(_OldVsn, State, _Extra) ->
 
 terminate(_Reason, LoopData) ->
   {ok, LoopData}.
-
-%% private
-
-%% @doc Get erflux configuration from given data.
--spec influx_db_config( [ { binary(), term() } ], erflux:erflux_config() ) -> { ok, erflux:erflux_config() } | { error, { bagarg, term() } }.
-influx_db_config([ H | T ], ConfigRecord) ->
-  case H of
-    { <<"host">>, InfluxDBHost } ->
-      influx_db_config( T, ConfigRecord#erflux_config{ host = InfluxDBHost } );
-    { <<"port">>, InfluxDBPort } ->
-      influx_db_config( T, ConfigRecord#erflux_config{ port = InfluxDBPort } );
-    { <<"username">>, InfluxDBUsername } ->
-      influx_db_config( T, ConfigRecord#erflux_config{ username = InfluxDBUsername } );
-    { <<"password">>, InfluxDBPassword } ->
-      influx_db_config( T, ConfigRecord#erflux_config{ password = InfluxDBPassword } );
-    { <<"timeout">>, InfluxDBTimeout } ->
-      influx_db_config( T, ConfigRecord#erflux_config{ timeout = InfluxDBTimeout } );
-    { <<"protocol">>, InfluxDBProtocol } ->
-      influx_db_config( T, ConfigRecord#erflux_config{ protocol = InfluxDBProtocol } );
-    AnyOther ->
-      { error, { badarg, AnyOther } }
-  end;
-
-influx_db_config([], ConfigRecord) ->
-  { ok, ConfigRecord }.
-
-%% @doc Get InfluxDB where condition based on the requested statistic window.
--spec influx_db_where( binary() ) -> binary().
-influx_db_where( <<"total">> ) ->
-  <<>>;
-influx_db_where( RequestedWindow ) when is_binary(RequestedWindow) ->
-  <<" where time > now() - ", RequestedWindow/binary>>.
-
+  
