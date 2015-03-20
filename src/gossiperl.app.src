@@ -20,7 +20,7 @@
 
 {application, gossiperl,
   [{description, "Gossip for erlang"},
-  {vsn, "1.1"},
+  {vsn, "1.2"},
   {modules, [ gossiperl_types,
               gossiperl_app,
               gossiperl_configuration,
@@ -34,6 +34,7 @@
               gossiperl_member_fsm,
               gossiperl_membership,
               gossiperl_statistics,
+              gossiperl_statistics_influxdb,
               gossiperl_subscriptions,
               gossiperl_subscriptions_qos1_redelivery,
               gossiperl_web]},
