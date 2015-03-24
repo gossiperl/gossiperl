@@ -4,7 +4,7 @@ SCRIPT_DIRECTORY=$(dirname "${BASH_SOURCE[0]}")
 
 ERL_V=17.4
 REBAR_V=2.0
-OPENSSL_V=1.0.2
+OPENSSL_V=1.0.1m
 
 ERLANG_DIR=/etc/gossiperl/erlang
 
