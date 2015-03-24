@@ -1,7 +1,7 @@
 -ifndef(_gossiperl_included).
 -define(_gossiperl_included, yeah).
 
--include("gossiperl_types.hrl").
+-include_lib("gossiperl_core/include/gossiperl_types.hrl").
 
 -record(gossiperNames, {
           overlay :: atom(),
