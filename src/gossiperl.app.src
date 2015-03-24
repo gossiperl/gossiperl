@@ -20,7 +20,7 @@
 
 {application, gossiperl,
   [{description, "Gossip for erlang"},
-  {vsn, "1.2.1"},
+  {vsn, "1.3.0"},
   {modules, [ gossiperl_app,
               gossiperl_configuration,
               gossiperl_log,
