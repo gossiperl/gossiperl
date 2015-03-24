@@ -175,7 +175,7 @@ terminate(_Reason, LoopData) ->
   {ok, LoopData}.
 
 %% @doc Initialise ETS storage for an overlay.
--spec subscriptions_store_init( gossiperl_config() ) -> ok.
+-spec subscriptions_store_init( gossiperl_configuration:gossiperl_config() ) -> ok.
 subscriptions_store_init(Config = #overlayConfig{}) ->
   ets:new( ?ETS_SUBSCRIPTIONS( Config ), [ set, named_table, public ] ),
   ets:new( ?ETS_REDELIVERIES( Config ),  [ set, named_table, public ] ),
@@ -183,8 +183,8 @@ subscriptions_store_init(Config = #overlayConfig{}) ->
 
 %% @doc Subscribe a client to an event of a specified type.
 -spec subscribe
-      ( gossiperl_config(), [ binary() ], binary(), binary() ) -> [ true ];
-      ( gossiperl_config(), binary(), binary(), binary() ) -> true.
+      ( gossiperl_configuration:gossiperl_config(), [ binary() ], binary(), binary() ) -> [ true ];
+      ( gossiperl_configuration:gossiperl_config(), binary(), binary(), binary() ) -> true.
 subscribe( Config = #overlayConfig{}, EventTypes, ClientName, Origin )
   when is_list(EventTypes) andalso is_binary(ClientName)
                            andalso is_binary(Origin) ->
@@ -195,7 +195,7 @@ subscribe( Config = #overlayConfig{}, EventType, ClientName, Origin )
                             andalso is_binary(Origin) ->
   subscribe( Config, EventType, ClientName, Origin, gossiperl_common:get_timestamp() ).
 
--spec subscribe( gossiperl_config(), binary(), binary(), binary(), pos_integer() ) -> true.
+-spec subscribe( gossiperl_configuration:gossiperl_config(), binary(), binary(), binary(), pos_integer() ) -> true.
 subscribe( Config = #overlayConfig{}, EventType, ClientName, Origin, Heartbeat )
   when is_binary(EventType) andalso is_binary(ClientName)
                           andalso is_binary(Origin)
@@ -208,8 +208,8 @@ subscribe( Config = #overlayConfig{}, EventType, ClientName, Origin, Heartbeat )
 
 %% @doc Unsubscribe a client from an event of a specified type.
 -spec unsubscribe
-      ( gossiperl_config(), [ binary() ], binary(), binary() ) -> [ true ];
-      ( gossiperl_config(), binary(), binary(), binary() ) -> true.
+      ( gossiperl_configuration:gossiperl_config(), [ binary() ], binary(), binary() ) -> [ true ];
+      ( gossiperl_configuration:gossiperl_config(), binary(), binary(), binary() ) -> true.
 unsubscribe( Config = #overlayConfig{}, EventTypes, ClientName, Origin )
   when is_list(EventTypes) andalso is_binary(ClientName)
                            andalso is_binary(Origin) ->
@@ -228,14 +228,14 @@ unsubscribe( Config = #overlayConfig{}, EventType, ClientName, Origin )
     end || [ MessageId, RedeliveryPid ] <- Redeliveries ].
 
 %% @doc Delete subscription.
--spec delete_subscription( gossiperl_config(), binary(), binary(), binary() ) -> true.
+-spec delete_subscription( gossiperl_configuration:gossiperl_config(), binary(), binary(), binary() ) -> true.
 delete_subscription( Config = #overlayConfig{}, EventType, ClientName, Origin )
   when is_binary(EventType) andalso is_binary(ClientName)
                             andalso is_binary(Origin) ->
   ets:match_delete( ?ETS_SUBSCRIPTIONS( Config ),
                     { { digestSubscription, EventType, ClientName, Origin, '_' } }).  
 
--spec notify_local_subscribers( gossiperl_config(), binary(), binary() ) -> { ok, listeners } | { ok, no_listeners }.
+-spec notify_local_subscribers( gossiperl_configuration:gossiperl_config(), binary(), binary() ) -> { ok, listeners } | { ok, no_listeners }.
 notify_local_subscribers( Config = #overlayConfig{}, EventType, EventObject )
   when is_binary(EventType) andalso is_binary(EventObject) ->
   [ case gen_server:call( ?MEMBERSHIP(Config), { get_member, ClientName } ) of
@@ -253,7 +253,7 @@ notify_local_subscribers( Config = #overlayConfig{}, EventType, EventObject )
     end || ClientName <- list_subscriptions( Config, EventType )].
 
 %% @doc Notify subscribers about incoming message for a subscription.
--spec notify_remote_subscribers( gossiperl_config(), binary(), binary(), binary(), binary() ) -> { ok, listeners } | { ok, no_listeners }.
+-spec notify_remote_subscribers( gossiperl_configuration:gossiperl_config(), binary(), binary(), binary(), binary() ) -> { ok, listeners } | { ok, no_listeners }.
 notify_remote_subscribers( Config = #overlayConfig{}, EventType, EventObject, Origin, ForwardedDigestId )
   when is_binary(EventType) andalso is_binary(EventObject)
                             andalso is_binary(Origin)
@@ -271,7 +271,7 @@ notify_remote_subscribers( Config = #overlayConfig{}, EventType, EventObject, Or
     end || ClientName <- list_subscriptions( Config, EventType )].
 
 %% @doc List registered shareable subscriptions. Excludes member_in, member_out, member_drop, member_quarantine and subscriptions of the member to whom the packet is being sent.
--spec list_shareable_subscriptions( gossiperl_config(), binary() ) -> [ { #digestSubscription{} } ].
+-spec list_shareable_subscriptions( gossiperl_configuration:gossiperl_config(), binary() ) -> [ { #digestSubscription{} } ].
 list_shareable_subscriptions(Config = #overlayConfig{}, TargetMember) when is_binary( TargetMember ) ->
   lists:foldl(fun({ Subscription }, Acc) ->
     case lists:member( Subscription#digestSubscription.event_type, ?LOCAL_NOTIFICATIONS ) of
@@ -293,12 +293,12 @@ list_shareable_subscriptions(Config = #overlayConfig{}, TargetMember) when is_bi
   end, [], list_subscriptions(Config)).
 
 %% @doc List registered subscriptions.
--spec list_subscriptions( gossiperl_config() ) -> [ { #digestSubscription{} } ].
+-spec list_subscriptions( gossiperl_configuration:gossiperl_config() ) -> [ { #digestSubscription{} } ].
 list_subscriptions(Config = #overlayConfig{}) ->
   lists:flatten( ets:match( ?ETS_SUBSCRIPTIONS( Config ), '$1' ) ).
 
 %% @doc List registered subscriptions of a given event type.
--spec list_subscriptions( gossiperl_config(), binary() ) -> list().
+-spec list_subscriptions( gossiperl_configuration:gossiperl_config(), binary() ) -> list().
 list_subscriptions( Config = #overlayConfig{}, EventType ) when is_binary(EventType) ->
   lists:flatten(ets:match(
     ?ETS_SUBSCRIPTIONS( Config ),

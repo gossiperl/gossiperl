@@ -27,6 +27,8 @@
 
 -include("gossiperl.hrl").
 
+-type token_auth_error() :: no_auth | token_mismatch.
+
 start_link() ->
   gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
@@ -149,7 +151,7 @@ decoded_credentials(EncodedCredentials) when is_binary( EncodedCredentials ) ->
   end.
 
 %% @doc Attempts token authentication, first tests the X-Session-Token header, then Authorization.
--spec token_authentication( gossiperl_config(), cowboy_req:req() ) -> { ok, token_ok } | { error, token_auth_error() }.
+-spec token_authentication( gossiperl_configuration:gossiperl_config(), cowboy_req:req() ) -> { ok, token_ok } | { error, token_auth_error() }.
 token_authentication(Config, Req) ->
   %stored token found for the overlay, check if x-session-token header given:
   XSessionToken = cowboy_req:header( <<"x-session-token">>, Req, undefined ),

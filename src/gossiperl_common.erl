@@ -41,7 +41,7 @@ get_timestamp() ->
   trunc( ((Mega*1000000+Sec)*1000000+Micro) / 1000000 ).
 
 %% @doc Get UNIX timestamp from OS timestamp.
--spec get_timestamp( timestamp() ) -> integer().
+-spec get_timestamp( erlang:timestamp() ) -> integer().
 get_timestamp({Mega,Sec,Micro}) ->
   trunc( ((Mega*1000000+Sec)*1000000+Micro) / 1000000 ).
 

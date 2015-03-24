@@ -32,6 +32,9 @@
 
 -include("gossiperl.hrl").
 
+-type overlay_removal_error() :: running | restarting | not_found | simple_one_for_one.
+-type overlay_termination_error() :: not_found | simple_one_for_one.
+
 start_link() ->
   supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
@@ -44,7 +47,7 @@ init([]) ->
     ?GOSSIPER_MEMBER( gossiperl_statistics ) ]}}.
 
 %% @doc Add an overlay and start it.
--spec add_overlay( atom(), gossiperl_config() ) -> supervisor:startchild_ret() | supervisor:startchild_err() | { error, { atom(), any() } }.
+-spec add_overlay( atom(), gossiperl_configuration:gossiperl_config() ) -> supervisor:startchild_ret() | supervisor:startchild_err() | { error, { atom(), any() } }.
 add_overlay(OverlayName, Config = #overlayConfig{}) when is_atom(OverlayName) ->
   case gossiperl_configuration:validate_racks( Config ) of
     { ok, Config } ->
@@ -54,7 +57,8 @@ add_overlay(OverlayName, Config = #overlayConfig{}) when is_atom(OverlayName) ->
   end.
 
 %% @doc Reconfigure running overlay with new configuration record.
--spec reconfigure_overlay( gossiperl_config(), gossiperl_config() ) -> { ok, gossiperl_config(), gossiperl_config() } | { error, atom() }.
+-spec reconfigure_overlay( gossiperl_configuration:gossiperl_config(), gossiperl_configuration:gossiperl_config() )
+      -> { ok, gossiperl_configuration:gossiperl_config(), gossiperl_configuration:gossiperl_config() } | { error, atom() }.
 reconfigure_overlay( OldConfig = #overlayConfig{}, NewConfig = #overlayConfig{} ) ->
   case gossiperl_configuration:validate_racks( NewConfig ) of
     { ok, NewConfig } ->
@@ -67,7 +71,7 @@ reconfigure_overlay( OldConfig = #overlayConfig{}, NewConfig = #overlayConfig{} 
   end.
 
 %% @doc Stop and remove overlay.
--spec remove_overlay( atom(), gossiperl_config() ) -> true | {error, overlay_removal_error()} | {error, overlay_termination_error()}.
+-spec remove_overlay( atom(), gossiperl_configuration:gossiperl_config() ) -> true | {error, overlay_removal_error()} | { error, overlay_termination_error() }.
 remove_overlay(OverlayName, Config = #overlayConfig{}) when is_atom(OverlayName) ->
   _ = gen_server:call( ?MESSAGING( Config ), stop ),
   case supervisor:terminate_child(?MODULE, OverlayName) of

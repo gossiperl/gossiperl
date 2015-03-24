@@ -24,15 +24,17 @@
 
 -include("gossiperl.hrl").
 
+-type delivery_reason() :: delivered | unsubscribed | max_redelivery_attempts.
+
 %% @doc Starts new QoS1 delivery process.
--spec start_link( gossiperl_config(), #digestMember{}, binary(), #digestEnvelope{}, binary() ) -> pid().
+-spec start_link( gossiperl_configuration:gossiperl_config(), #digestMember{}, binary(), #digestEnvelope{}, binary() ) -> pid().
 start_link(Config = #overlayConfig{}, Member = #digestMember{}, EventType, EventObject, ForwardedDigestId)
   when is_binary(EventType) andalso is_binary(EventObject)
                             andalso is_binary(ForwardedDigestId) ->
   spawn_link(gossiperl_subscriptions_qos1_redelivery, init, [ Config, Member, EventType, EventObject, ForwardedDigestId ]).
 
 %% @doc Called by start_link.
--spec init( gossiperl_config(), #digestMember{}, binary(), #digestEnvelope{}, binary() ) -> { ok, delivery_reason() }.
+-spec init( gossiperl_configuration:gossiperl_config(), #digestMember{}, binary(), #digestEnvelope{}, binary() ) -> { ok, delivery_reason() }.
 init(Config = #overlayConfig{}, Member = #digestMember{}, EventType, EventObject, ForwardedDigestId)
   when is_binary(EventType) andalso is_binary(EventObject)
                             andalso is_binary(ForwardedDigestId) ->
@@ -44,7 +46,7 @@ init(Config = #overlayConfig{}, Member = #digestMember{}, EventType, EventObject
   end.
 
 %% @doc Forwards the message for the delivery to the messaging component of the overlay.
--spec attempt_delivery( gossiperl_config(), #digestMember{}, binary() ) -> ok.
+-spec attempt_delivery( gossiperl_configuration:gossiperl_config(), #digestMember{}, binary() ) -> ok.
 attempt_delivery(Config = #overlayConfig{}, Member = #digestMember{}, EventObject)
   when is_binary(EventObject) ->
   % the digest here is decrypted but serialized:
@@ -52,7 +54,7 @@ attempt_delivery(Config = #overlayConfig{}, Member = #digestMember{}, EventObjec
   ok.
 
 %% @doc Internal loop.
--spec redelivery( gossiperl_config(), #digestMember{}, binary(), binary(), binary(), non_neg_integer() ) -> { ok, delivery_reason() }.
+-spec redelivery( gossiperl_configuration:gossiperl_config(), #digestMember{}, binary(), binary(), binary(), non_neg_integer() ) -> { ok, delivery_reason() }.
 redelivery( Config = #overlayConfig{}, Member = #digestMember{}, EventType, EventObject, ForwardedDigestId, Attempts )
   when is_binary(EventType) andalso is_binary(EventObject)
                             andalso is_binary(ForwardedDigestId)
