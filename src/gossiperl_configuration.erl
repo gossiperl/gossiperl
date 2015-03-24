@@ -34,6 +34,12 @@
 
 -include("gossiperl.hrl").
 
+-type gossiperl_config() :: #overlayConfig{}.
+-type rack_name() :: binary().
+-type multicast_setting() :: ip | ttl | local_iface_address.
+
+-export_type([ gossiperl_config/0 ]).
+
 %% @doc Removes configuration for an overlay.
 -spec remove_configuration_for( atom() ) -> true.
 remove_configuration_for(OverlayName) when is_atom(OverlayName) ->

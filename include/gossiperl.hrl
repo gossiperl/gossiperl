@@ -76,19 +76,6 @@
           retry_count = 0 :: integer(),
           digest :: any() }).
 
--type gossiperl_config() :: #overlayConfig{}.
--type rack_name() :: binary().
--type timestamp() :: {MegaSecs :: non_neg_integer(), Secs :: non_neg_integer(), MicroSecs :: non_neg_integer()}.
--type delivery_reason() :: delivered | unsubscribed | max_redelivery_attempts.
--type token_auth_error() :: no_auth | token_mismatch.
--type superuser_auth_error() :: no_auth | not_configured.
--type overlay_removal_error() :: running | restarting | not_found | simple_one_for_one.
--type overlay_termination_error() :: not_found | simple_one_for_one.
--type handle_reachable_success_type() :: added | returned | updated.
--type handle_reachable_error_type() :: no_member | no_secret_match | delivery_expired.
--type digest_ack_response() :: no_subscription_delivery | subscriptions_delivered.
--type multicast_setting() :: ip | ttl | local_iface_address.
-
 -define(ETC_CONFIG_PATH, <<"/etc/gossiperl/settings.json">>).
 -define(PRIV_CONFIG_PATH, <<"settings.json">>).
 -define(LOCAL_ADDRESS_IP, <<"127.0.0.1">>).

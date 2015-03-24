@@ -27,7 +27,7 @@
 -include("gossiperl.hrl").
 
 %% @doc Starts an overlay supervisor.
--spec start_link( gossiperl_config() ) -> supervisor:startlink_ret() | supervisor:startlink_err() | { error, { atom(), any() } }.
+-spec start_link( gossiperl_configuration:gossiperl_config() ) -> supervisor:startlink_ret() | supervisor:startlink_err() | { error, { atom(), any() } }.
 start_link(Config) ->
   case gossiperl_configuration:setup(Config) of
     { error, Reason } ->
@@ -37,7 +37,7 @@ start_link(Config) ->
   end.
 
 %% @doc initialises an overlay supervisor. Called by start_link.
--spec init([ gossiperl_config() ]) -> {ok,{{supervisor:strategy(),non_neg_integer(),non_neg_integer()},[supervisor:child_spec()]}} | ignore.
+-spec init([ gossiperl_configuration:gossiperl_config() ]) -> {ok,{{supervisor:strategy(),non_neg_integer(),non_neg_integer()},[supervisor:child_spec()]}} | ignore.
 init([Config]) ->
   gossiperl_log:notice("GossiperConfiguration is :: ~p", [Config]),
   {ok, {{one_for_one, 10, 10},

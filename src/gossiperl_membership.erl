@@ -250,7 +250,7 @@ terminate(_Reason, LoopData) ->
 %% --------------------
 
 %% @doc Gossip digest to a random unreachable member.
--spec gossip_unreachable( atom(), atom(), term(), gossiperl_config(), list() ) -> #digestMember{} | undefined.
+-spec gossip_unreachable( atom(), atom(), term(), gossiperl_configuration:gossiperl_config(), list() ) -> #digestMember{} | undefined.
 gossip_unreachable(Visibility, DigestType, Digest, Config = #overlayConfig{}, MembershipList)
   when is_atom(Visibility) andalso is_atom(DigestType)
                            andalso is_list(MembershipList) ->
@@ -263,7 +263,7 @@ gossip_unreachable(Visibility, DigestType, Digest, Config = #overlayConfig{}, Me
   end.
 
 %% @doc Gossip digest to a random reachable member.
--spec gossip_reachable( atom(), atom(), term(), gossiperl_config(), list() ) -> #digestMember{} | undefined.
+-spec gossip_reachable( atom(), atom(), term(), gossiperl_configuration:gossiperl_config(), list() ) -> #digestMember{} | undefined.
 gossip_reachable(Visibility, DigestType, Digest, Config = #overlayConfig{}, MembershipList)
   when is_atom(Visibility) andalso is_atom(DigestType)
                            andalso is_list(MembershipList) ->
@@ -276,7 +276,7 @@ gossip_reachable(Visibility, DigestType, Digest, Config = #overlayConfig{}, Memb
   end.
 
 %% @doc Gossip digest to a random seed.
--spec gossip_seed( atom(), term(), gossiperl_config() ) -> inet:ip_address() | undefined.
+-spec gossip_seed( atom(), term(), gossiperl_configuration:gossiperl_config() ) -> inet:ip_address() | undefined.
 gossip_seed(DigestType, Digest, Config = #overlayConfig{}) when is_atom(DigestType) ->
   case random_seed(Config) of
     undefined ->
@@ -290,7 +290,7 @@ gossip_seed(DigestType, Digest, Config = #overlayConfig{}) when is_atom(DigestTy
 %% --------------------
 
 %% @doc Get member for current overlay.
--spec self_as_member( gossiperl_config() ) -> #digestMember{}.
+-spec self_as_member( gossiperl_configuration:gossiperl_config() ) -> #digestMember{}.
 self_as_member( Config = #overlayConfig{} ) ->
   #digestMember{
     member_name      = Config#overlayConfig.member_name,
@@ -310,7 +310,7 @@ random_member(Status, Visibility, MembershipList)
       to_digest_member( lists:nth( random:uniform( length( MembersInfo ) ), MembersInfo ) )
   end.
 
--spec random_seed(gossiperl_config()) -> #digestMember{} | undefined.
+-spec random_seed( gossiperl_configuration:gossiperl_config() ) -> #digestMember{} | undefined.
 random_seed(Config = #overlayConfig{}) ->
   SeedIps = remove_known_ips( Config#overlayConfig.seeds, [ Config#overlayConfig.ip_hint ] ++ Config#overlayConfig.internal#internalConfig.knownIps ),
   case SeedIps of [] -> undefined; _ -> lists:nth( random:uniform( length( SeedIps ) ), SeedIps ) end.
