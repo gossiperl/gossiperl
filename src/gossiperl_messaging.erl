@@ -103,8 +103,8 @@ handle_info({ send_digest, #digestMember{ member_ip = MemberIp, member_port = Me
             { messaging, Config = #overlayConfig{ name = OverlayName,
                                                   multicast = undefined,
                                                   internal = #internalConfig{ socket = S } } }) when is_atom(DigestType) ->
-  ok = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
-                                  gossiperl_common:parse_binary_ip( MemberIp ), MemberPort, S ),
+  _ = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
+                                 gossiperl_common:parse_binary_ip( MemberIp ), MemberPort, S ),
   {noreply, {messaging, Config}};
 
 %% @doc Sends the digest to a member in a multicast overlay.
@@ -114,8 +114,8 @@ handle_info({ send_digest, #digestMember{ member_ip = MemberIp }, DigestType, Di
                                                   multicast = #multicastConfig{ ip = MulticastIp },
                                                   internal = #internalConfig{ socket = S } } })
   when is_atom(DigestType) andalso MemberIp =/= <<"127.0.0.1">> andalso MemberIp =/= <<"::1">> ->
-  ok = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
-                                  MulticastIp, OverlayPort, S ),
+  _ = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
+                                 MulticastIp, OverlayPort, S ),
   {noreply, {messaging, Config}};
 
 %% @doc Sends the digest to a local member when in multicast overlay.
@@ -125,8 +125,8 @@ handle_info({ send_digest, #digestMember{ member_ip = MemberIp, member_port = Me
                                                   internal = #internalConfig{ local_socket = S } } })
   when is_atom(DigestType) andalso ( MemberIp =:= <<"127.0.0.1">> orelse MemberIp =:= <<"::1">> ) ->
   { ok, Address } = inet:parse_address( binary_to_list( MemberIp ) ),
-  ok = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
-                                  Address, MemberPort, S ),
+  _ = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
+                                 Address, MemberPort, S ),
   {noreply, {messaging, Config}};
 
 %% @doc Sends the digest over a multicast address.
@@ -135,8 +135,8 @@ handle_info({ send_multicast_digest, DigestType, Digest },
                                                   port = OverlayPort,
                                                   internal = #internalConfig{ socket = S },
                                                   multicast = #multicastConfig{ ip = MulticastIp } } }) when is_atom(DigestType) ->
-  ok = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
-                                  MulticastIp, OverlayPort, S ),
+  _ = deliver_digest_via_socket( DigestType, Digest, OverlayName, ?ENCRYPTION( Config ),
+                                 MulticastIp, OverlayPort, S ),
   {noreply, {messaging, Config}};
 
 %%% RECEIVING
