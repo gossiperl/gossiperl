@@ -20,7 +20,7 @@
 
 {application, gossiperl,
   [{description, "Gossip for erlang"},
-  {vsn, git},
+  {vsn, {cmd, "git tag -l | sort -r | head -n 1"}},
   {modules, [ gossiperl_app,
               gossiperl_configuration,
               gossiperl_log,
