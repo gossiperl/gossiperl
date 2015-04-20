@@ -23,7 +23,6 @@
   {vsn, {cmd, "git tag -l | sort -r | head -n 1"}},
   {modules, [ gossiperl_app,
               gossiperl_configuration,
-              gossiperl_log,
               gossiperl_common,
               gossiperl_encryption,
               gossiperl_serialization,
