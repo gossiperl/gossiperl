@@ -173,7 +173,7 @@ configuration_from_json( JsonData, OverlayName ) when is_atom(OverlayName) ->
                                                   undefined ->
                                                     Configuration#overlayConfig.ip;
                                                   _ ->
-                                                    Configuration#overlayConfig.multicast#multicastConfig.ip
+                                                    Configuration#overlayConfig.multicast#multicastConfig.local_iface_address
                                                 end } }
   end.
 
