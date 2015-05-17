@@ -8,10 +8,6 @@
 SCRIPT_DIRECTORY=$(dirname "${BASH_SOURCE[0]}")
 cd $SCRIPT_DIRECTORY/../
 rebar clean get-deps
-
-chmod +x $SCRIPT_DIRECTORY/patches/raspberrypi-erlsha2-patch.sh
-$SCRIPT_DIRECTORY/patches/raspberrypi-erlsha2-patch.sh
-
 rebar compile
 erlc -o ./ebin/
 erl \
