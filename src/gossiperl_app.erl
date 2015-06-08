@@ -29,6 +29,7 @@
 
 %% @doc Starts gossiperl application.
 start(_Type, _Args) ->
+  _ = lager:start(),
   configure_from_file(),
   gossiperl_sup:start_link().
 

@@ -13,4 +13,5 @@ erlc -o ./ebin/
 erl \
   -pa ./deps/*/ebin \
   -pa ./ebin/ \
-  -eval "gossiperl_run:start()."
+  -eval "gossiperl_run:start()." \
+  -config /vagrant/app.config

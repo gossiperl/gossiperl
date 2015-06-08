@@ -3,6 +3,7 @@
 *.beam
 .rebar
 .eunit
+bin/releases/*.deb
 bin/rebar-src
 deps/**
 ebin/**
