@@ -28,9 +28,11 @@ Gossiperl is a language agnostic, Apache Thrift based gossip middleware and mess
 
 Full documentation avaialable [here](https://github.com/gossiperl/gossiperl/wiki).
 
+    ubuntu erlang 23.x fails. snap erlang 22.x with rebar3 required for hackney
+
 ## Unit tests
 
-    rebar clean get-deps compile && rebar eunit skip_deps=true
+    rebar3 clean get-deps compile && rebar3 eunit skip_deps=true
 
 ## Author
 
